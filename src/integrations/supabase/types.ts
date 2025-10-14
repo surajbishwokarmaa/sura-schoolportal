@@ -19,18 +19,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          sections: string[] | null
           subjects: Json
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          sections?: string[] | null
           subjects: Json
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          sections?: string[] | null
           subjects?: Json
         }
         Relationships: []
@@ -133,6 +136,7 @@ export type Database = {
           status: Database["public"]["Enums"]["result_status"] | null
           student_id: string
           subject: string
+          subject_id: string | null
           teacher_id: string | null
           term: Database["public"]["Enums"]["term_type"]
           theory_marks: number | null
@@ -150,6 +154,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["result_status"] | null
           student_id: string
           subject: string
+          subject_id?: string | null
           teacher_id?: string | null
           term: Database["public"]["Enums"]["term_type"]
           theory_marks?: number | null
@@ -167,6 +172,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["result_status"] | null
           student_id?: string
           subject?: string
+          subject_id?: string | null
           teacher_id?: string | null
           term?: Database["public"]["Enums"]["term_type"]
           theory_marks?: number | null
@@ -179,6 +185,13 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "results_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
           {
@@ -248,6 +261,47 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          class_id: string | null
+          created_at: string | null
+          id: string
+          name: string
+          practical_full_marks: number
+          theory_full_marks: number
+          total_marks: number
+          updated_at: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          practical_full_marks?: number
+          theory_full_marks?: number
+          total_marks?: number
+          updated_at?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          practical_full_marks?: number
+          theory_full_marks?: number
+          total_marks?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subjects_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
             referencedColumns: ["id"]
           },
         ]

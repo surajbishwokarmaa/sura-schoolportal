@@ -46,7 +46,8 @@ const AdminAuth = () => {
       return;
     }
 
-    const { error } = await signIn(email, password);
+    // Use toLowerCase for case-insensitive email comparison
+    const { error } = await signIn(email.toLowerCase().trim(), password);
 
     if (error) {
       toast({

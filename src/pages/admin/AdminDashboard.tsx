@@ -1,31 +1,56 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { GraduationCap, Users, BookOpen, FileText, Bell, LogOut, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminDashboard = () => {
   const { user, userRole, signOut, loading } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    students: 0,
+    teachers: 0,
+    classes: 0,
+    results: 0
+  });
 
   useEffect(() => {
     if (!loading && (!user || userRole !== 'admin')) {
       navigate('/auth/admin');
+    } else if (user && userRole === 'admin') {
+      fetchStats();
     }
   }, [user, userRole, loading, navigate]);
 
-  const stats = [
-    { title: 'Total Students', value: '0', icon: GraduationCap, color: 'from-blue-500 to-blue-600' },
-    { title: 'Total Teachers', value: '0', icon: Users, color: 'from-green-500 to-emerald-600' },
-    { title: 'Classes', value: '13', icon: BookOpen, color: 'from-purple-500 to-purple-600' },
-    { title: 'Published Results', value: '0', icon: FileText, color: 'from-orange-500 to-orange-600' }
+  const fetchStats = async () => {
+    const [studentsRes, teachersRes, classesRes, resultsRes] = await Promise.all([
+      supabase.from('students').select('*', { count: 'exact', head: true }),
+      supabase.from('teachers').select('*', { count: 'exact', head: true }),
+      supabase.from('classes').select('*', { count: 'exact', head: true }),
+      supabase.from('results').select('*', { count: 'exact', head: true }).eq('status', 'published')
+    ]);
+
+    setStats({
+      students: studentsRes.count || 0,
+      teachers: teachersRes.count || 0,
+      classes: classesRes.count || 0,
+      results: resultsRes.count || 0
+    });
+  };
+
+  const statsDisplay = [
+    { title: 'Total Students', value: stats.students.toString(), icon: GraduationCap, color: 'from-blue-500 to-blue-600' },
+    { title: 'Total Teachers', value: stats.teachers.toString(), icon: Users, color: 'from-green-500 to-emerald-600' },
+    { title: 'Classes', value: stats.classes.toString(), icon: BookOpen, color: 'from-purple-500 to-purple-600' },
+    { title: 'Published Results', value: stats.results.toString(), icon: FileText, color: 'from-orange-500 to-orange-600' }
   ];
 
   const quickActions = [
-    { title: 'Manage Students', description: 'Add, edit, or remove students', icon: GraduationCap, path: '/admin/students' },
+    { title: 'Manage Classes', description: 'Add and configure classes', icon: BookOpen, path: '/admin/classes' },
     { title: 'Manage Teachers', description: 'Manage teacher accounts', icon: Users, path: '/admin/teachers' },
-    { title: 'Results Management', description: 'Review and publish results', icon: FileText, path: '/admin/results' },
+    { title: 'Manage Students', description: 'Add, edit, or remove students', icon: GraduationCap, path: '/admin/students' },
     { title: 'Notices', description: 'Create and manage notices', icon: Bell, path: '/admin/notices' }
   ];
 
@@ -66,7 +91,7 @@ const AdminDashboard = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat) => {
+          {statsDisplay.map((stat) => {
             const Icon = stat.icon;
             return (
               <Card key={stat.title} className="p-6">
