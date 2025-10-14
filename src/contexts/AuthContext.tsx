@@ -53,10 +53,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
+    // Fetch role from secure user_roles table instead of profiles
     const { data, error } = await supabase
-      .from('profiles')
+      .from('user_roles')
       .select('role')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (data) {
@@ -81,15 +82,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    if (!error && data.user) {
-      // Create profile
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        full_name: fullName,
-        phone,
-        role: role as 'admin' | 'teacher' | 'student'
-      });
-    }
+    // Profile and role are now auto-created by the database trigger
+    // No need for manual insertion
 
     return { error };
   };

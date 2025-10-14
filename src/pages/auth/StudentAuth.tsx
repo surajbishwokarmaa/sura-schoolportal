@@ -7,6 +7,19 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { z } from 'zod';
+
+const studentLoginSchema = z.object({
+  phone: z.string()
+    .trim()
+    .min(1, 'Phone number is required')
+    .min(7, 'Phone number must be at least 7 digits')
+    .max(15, 'Phone number must be less than 15 digits')
+    .regex(/^[0-9+\-\s()]+$/, 'Please enter a valid phone number'),
+  password: z.string()
+    .min(1, 'Password is required')
+    .max(128, 'Password must be less than 128 characters'),
+});
 
 const StudentAuth = () => {
   const [phone, setPhone] = useState('');
@@ -20,6 +33,20 @@ const StudentAuth = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Validate input
+    const validation = studentLoginSchema.safeParse({ phone, password });
+    
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast({
+        title: "Validation Error",
+        description: firstError.message,
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
+
     // For phone login, we'll use phone as email temporarily
     // In production, you'd handle this differently
     const email = `${phone}@student.local`;
@@ -29,7 +56,7 @@ const StudentAuth = () => {
     if (error) {
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please check your phone number and password.",
+        description: "Invalid credentials. Please check your phone number and password.",
         variant: "destructive"
       });
     } else {

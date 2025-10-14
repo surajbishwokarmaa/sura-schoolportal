@@ -7,6 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { z } from 'zod';
+
+const teacherLoginSchema = z.object({
+  email: z.string()
+    .trim()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .max(255, 'Email must be less than 255 characters'),
+  password: z.string()
+    .min(1, 'Password is required')
+    .max(128, 'Password must be less than 128 characters'),
+});
 
 const TeacherAuth = () => {
   const [email, setEmail] = useState('');
@@ -20,12 +32,26 @@ const TeacherAuth = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Validate input
+    const validation = teacherLoginSchema.safeParse({ email, password });
+    
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast({
+        title: "Validation Error",
+        description: firstError.message,
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await signIn(email, password);
 
     if (error) {
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please check your email and password.",
+        description: "Invalid credentials. Please check your email and password.",
         variant: "destructive"
       });
     } else {

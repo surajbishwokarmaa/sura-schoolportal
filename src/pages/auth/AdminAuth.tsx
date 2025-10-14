@@ -7,6 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { z } from 'zod';
+
+const adminLoginSchema = z.object({
+  email: z.string()
+    .trim()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .max(255, 'Email must be less than 255 characters'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be less than 128 characters'),
+});
 
 const AdminAuth = () => {
   const [email, setEmail] = useState('');
@@ -20,12 +32,26 @@ const AdminAuth = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Validate input
+    const validation = adminLoginSchema.safeParse({ email, password });
+    
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast({
+        title: "Validation Error",
+        description: firstError.message,
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await signIn(email, password);
 
     if (error) {
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid admin credentials.",
+        description: "Invalid admin credentials. Please check your email and password.",
         variant: "destructive"
       });
     } else {
@@ -98,11 +124,8 @@ const AdminAuth = () => {
                 {loading ? "Authenticating..." : "Access Admin Panel"}
               </Button>
 
-              <div className="bg-muted/50 p-4 rounded-lg mt-6">
-                <p className="text-sm font-medium mb-2">Default Admin Credentials:</p>
-                <p className="text-xs text-muted-foreground">Email: infosurajbishwokarma@gmail.com</p>
-                <p className="text-xs text-muted-foreground">Password: 12345678</p>
-                <p className="text-xs text-destructive mt-2">⚠️ Change these credentials after first login</p>
+              <div className="text-center text-sm text-muted-foreground mt-4">
+                <p>Contact the system administrator for access credentials</p>
               </div>
             </form>
           </Card>
