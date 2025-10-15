@@ -44,7 +44,7 @@ interface Class {
 }
 
 const StudentsManagement = () => {
-  const { user, userRole, loading, signUp } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
@@ -153,33 +153,37 @@ const StudentsManagement = () => {
         resetForm();
       }
     } else {
-      // Create auth user using phone
-      const { error: signUpError } = await signUp(
-        `${formData.phone}@school.edu.np`, // Create email from phone
-        formData.password,
-        'student',
-        formData.name,
-        formData.phone
-      );
+      // Auto-generate password if not provided
+      const password = formData.password || `student${formData.rollNo}`;
+      const studentEmail = `student${formData.rollNo}@school.edu.np`;
 
-      if (signUpError) {
+      // Create auth user using Admin API
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: studentEmail,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: formData.name,
+          role: 'student',
+          phone: formData.phone
+        }
+      });
+
+      if (authError) {
         toast({
           title: 'Error',
-          description: signUpError.message || 'Failed to create student account',
+          description: authError.message || 'Failed to create student account',
           variant: 'destructive'
         });
         setIsLoading(false);
         return;
       }
 
-      // Get the newly created user
-      const { data: userData } = await supabase.auth.getUser();
-      
-      if (userData.user) {
+      if (authUser.user) {
         const { error } = await supabase
           .from('students')
           .insert([{
-            user_id: userData.user.id,
+            user_id: authUser.user.id,
             name: formData.name,
             class: formData.class,
             section: formData.section,
@@ -189,7 +193,8 @@ const StudentsManagement = () => {
             parent_name: formData.parentName,
             phone: formData.phone,
             parent_phone: formData.parentPhone,
-            address: formData.address
+            address: formData.address,
+            is_active: true
           }]);
 
         if (error) {
@@ -201,7 +206,8 @@ const StudentsManagement = () => {
         } else {
           toast({
             title: 'Success',
-            description: 'Student created successfully'
+            description: `Student created successfully! Login: ${studentEmail}, Password: ${password}`,
+            duration: 10000
           });
           fetchStudents();
           resetForm();
