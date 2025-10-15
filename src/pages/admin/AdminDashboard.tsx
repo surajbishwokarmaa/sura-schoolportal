@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, Users, BookOpen, FileText, Bell, LogOut, Shield } from 'lucide-react';
+import { GraduationCap, Users, BookOpen, FileText, Bell, LogOut, Shield, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,6 +51,7 @@ const AdminDashboard = () => {
     { title: 'Manage Classes', description: 'Add and configure classes', icon: BookOpen, path: '/admin/classes' },
     { title: 'Manage Teachers', description: 'Manage teacher accounts', icon: Users, path: '/admin/teachers' },
     { title: 'Manage Students', description: 'Add, edit, or remove students', icon: GraduationCap, path: '/admin/students' },
+    { title: '📤 Bulk Data Upload', description: 'Upload students/teachers from Excel', icon: Upload, path: '/admin/bulk-upload' },
     { title: 'Notices', description: 'Create and manage notices', icon: Bell, path: '/admin/notices' }
   ];
 

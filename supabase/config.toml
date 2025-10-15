@@ -1,1 +1,4 @@
 project_id = "ozrpoufjuxnrpgzlzzuy"
+
+[functions.process-bulk-upload]
+verify_jwt = false

@@ -14,6 +14,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import ClassesManagement from "./pages/admin/ClassesManagement";
 import TeachersManagement from "./pages/admin/TeachersManagement";
 import StudentsManagement from "./pages/admin/StudentsManagement";
+import BulkUploadManagement from "./pages/admin/BulkUploadManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/admin/classes" element={<ClassesManagement />} />
             <Route path="/admin/teachers" element={<TeachersManagement />} />
             <Route path="/admin/students" element={<StudentsManagement />} />
+            <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
