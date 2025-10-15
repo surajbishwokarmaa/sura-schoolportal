@@ -127,6 +127,14 @@ const AdminAuth = () => {
 
               <div className="text-center text-sm text-muted-foreground mt-4">
                 <p>Contact the system administrator for access credentials</p>
+                <Button
+                  variant="link"
+                  type="button"
+                  onClick={() => navigate('/auth/admin-setup')}
+                  className="mt-2"
+                >
+                  First time? Setup admin account
+                </Button>
               </div>
             </form>
           </Card>
