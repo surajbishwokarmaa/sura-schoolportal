@@ -226,19 +226,21 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Create auto-notice
+    // Step 3: Create auto-notice with better visibility settings
     if (summary.added > 0) {
       const noticeTitle = type === 'students' 
         ? `📢 Student Data Updated`
         : `📢 New Teachers Added`;
       
       const noticeDescription = type === 'students'
-        ? `${summary.added} student records have been successfully added to the system.`
-        : `${summary.added} new teachers have been added to the system.`;
+        ? `${summary.added} student records have been successfully added to the system. ${summary.skipped > 0 ? `${summary.skipped} duplicate records were skipped.` : ''}`
+        : `${summary.added} new teachers have been added to the system. ${summary.skipped > 0 ? `${summary.skipped} duplicate records were skipped.` : ''}`;
 
       await supabase.from('notices').insert({
         title: noticeTitle,
         description: noticeDescription,
+        visible_to: 'all',
+        is_auto_generated: true,
         expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
       });
     }

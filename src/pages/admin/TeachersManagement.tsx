@@ -135,8 +135,28 @@ const TeachersManagement = () => {
         resetForm();
       }
     } else {
-      // Auto-generate password if not provided
-      const password = formData.password || 'teacher123';
+      // Validate required fields
+      if (!formData.email || formData.email.trim() === '') {
+        toast({
+          title: 'Error',
+          description: 'Email is required for new teachers',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (!formData.password || formData.password.trim() === '') {
+        toast({
+          title: 'Error',
+          description: 'Password is required for new teachers',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const password = formData.password;
 
       // Create auth user using Admin API
       const { data: authUser, error: authError } = await supabase.auth.admin.createUser({

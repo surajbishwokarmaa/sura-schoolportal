@@ -66,7 +66,9 @@ export type Database = {
           description: string
           expiry_date: string | null
           id: string
+          is_auto_generated: boolean | null
           title: string
+          visible_to: string | null
         }
         Insert: {
           created_at?: string
@@ -74,7 +76,9 @@ export type Database = {
           description: string
           expiry_date?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           title: string
+          visible_to?: string | null
         }
         Update: {
           created_at?: string
@@ -82,7 +86,9 @@ export type Database = {
           description?: string
           expiry_date?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           title?: string
+          visible_to?: string | null
         }
         Relationships: [
           {
@@ -270,6 +276,7 @@ export type Database = {
           class_id: string | null
           created_at: string | null
           id: string
+          is_equal_split: boolean | null
           name: string
           practical_full_marks: number
           theory_full_marks: number
@@ -280,6 +287,7 @@ export type Database = {
           class_id?: string | null
           created_at?: string | null
           id?: string
+          is_equal_split?: boolean | null
           name: string
           practical_full_marks?: number
           theory_full_marks?: number
@@ -290,6 +298,7 @@ export type Database = {
           class_id?: string | null
           created_at?: string | null
           id?: string
+          is_equal_split?: boolean | null
           name?: string
           practical_full_marks?: number
           theory_full_marks?: number

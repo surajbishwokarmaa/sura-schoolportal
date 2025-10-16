@@ -35,6 +35,7 @@ interface Student {
   phone: string | null;
   parent_phone: string;
   address: string | null;
+  photo_url: string | null;
 }
 
 interface Class {
@@ -63,6 +64,7 @@ const StudentsManagement = () => {
     phone: '',
     parentPhone: '',
     address: '',
+    photo: '',
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -153,6 +155,17 @@ const StudentsManagement = () => {
         resetForm();
       }
     } else {
+      // Validate photo is provided
+      if (!formData.photo || formData.photo.trim() === '') {
+        toast({
+          title: 'Error',
+          description: 'Photo is required for all students',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Auto-generate password if not provided
       const password = formData.password || `student${formData.rollNo}`;
       const studentEmail = `student${formData.rollNo}@school.edu.np`;
@@ -194,6 +207,7 @@ const StudentsManagement = () => {
             phone: formData.phone,
             parent_phone: formData.parentPhone,
             address: formData.address,
+            photo_url: formData.photo,
             is_active: true
           }]);
 
@@ -231,6 +245,7 @@ const StudentsManagement = () => {
       phone: student.phone || '',
       parentPhone: student.parent_phone,
       address: student.address || '',
+      photo: student.photo_url || '',
       password: ''
     });
     setIsDialogOpen(true);
@@ -273,6 +288,7 @@ const StudentsManagement = () => {
       phone: '',
       parentPhone: '',
       address: '',
+      photo: '',
       password: ''
     });
     setEditingStudent(null);
@@ -440,6 +456,19 @@ const StudentsManagement = () => {
                       required
                     />
                   </div>
+                </div>
+                <div>
+                  <Label htmlFor="photo">Photo URL *</Label>
+                  <Input
+                    id="photo"
+                    value={formData.photo}
+                    onChange={(e) => setFormData({...formData, photo: e.target.value})}
+                    placeholder="Photo URL (Required)"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Photo is required for all students
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="address">Address</Label>

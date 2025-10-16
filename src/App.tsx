@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import Landing from "./pages/Landing";
+import Index from "./pages/Index";
 import SelectRole from "./pages/SelectRole";
 import StudentAuth from "./pages/auth/StudentAuth";
 import TeacherAuth from "./pages/auth/TeacherAuth";
@@ -15,6 +15,7 @@ import ClassesManagement from "./pages/admin/ClassesManagement";
 import TeachersManagement from "./pages/admin/TeachersManagement";
 import StudentsManagement from "./pages/admin/StudentsManagement";
 import BulkUploadManagement from "./pages/admin/BulkUploadManagement";
+import NoticesManagement from "./pages/admin/NoticesManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,7 +28,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            <Route path="/" element={<Index />} />
             <Route path="/select-role" element={<SelectRole />} />
             <Route path="/auth/student" element={<StudentAuth />} />
             <Route path="/auth/teacher" element={<TeacherAuth />} />
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/admin/teachers" element={<TeachersManagement />} />
             <Route path="/admin/students" element={<StudentsManagement />} />
             <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
+            <Route path="/admin/notices" element={<NoticesManagement />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
