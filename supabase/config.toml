@@ -2,3 +2,6 @@ project_id = "ozrpoufjuxnrpgzlzzuy"
 
 [functions.process-bulk-upload]
 verify_jwt = false
+
+[functions.create-user-account]
+verify_jwt = false

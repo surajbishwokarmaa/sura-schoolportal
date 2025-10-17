@@ -54,6 +54,7 @@ const TeachersManagement = () => {
     phone: '',
     subjects: '',
     classesAssigned: '',
+    photo: '',
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -156,40 +157,51 @@ const TeachersManagement = () => {
         return;
       }
 
-      const password = formData.password;
-
-      // Create auth user using Admin API
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: formData.name,
-          role: 'teacher',
-          phone: formData.phone
-        }
-      });
-
-      if (authError) {
+      if (!formData.photo || formData.photo.trim() === '') {
         toast({
           title: 'Error',
-          description: authError.message || 'Failed to create teacher account',
+          description: 'Photo is required for all teachers',
           variant: 'destructive'
         });
         setIsLoading(false);
         return;
       }
 
-      if (authUser.user) {
+      const password = formData.password;
+
+      // Create auth user via edge function
+      const { data: authData, error: authError } = await supabase.functions.invoke('create-user-account', {
+        body: {
+          email: formData.email,
+          password: password,
+          role: 'teacher',
+          fullName: formData.name,
+          phone: formData.phone
+        }
+      });
+
+      if (authError || !authData?.user) {
+        toast({
+          title: 'Error',
+          description: authError?.message || authData?.error || 'Failed to create teacher account',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const authUser = authData.user;
+      if (authUser) {
         const { error } = await supabase
           .from('teachers')
           .insert({
-            user_id: authUser.user.id,
+            user_id: authUser.id,
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
             subjects: subjectsArray,
-            classes_assigned: classesArray
+            classes_assigned: classesArray,
+            photo_url: formData.photo
           });
 
         if (error) {
@@ -221,6 +233,7 @@ const TeachersManagement = () => {
       phone: teacher.phone || '',
       subjects: teacher.subjects.join(', '),
       classesAssigned: teacher.classes_assigned.join(', '),
+      photo: teacher.photo_url || '',
       password: ''
     });
     setIsDialogOpen(true);
@@ -258,6 +271,7 @@ const TeachersManagement = () => {
       phone: '',
       subjects: '',
       classesAssigned: '',
+      photo: '',
       password: ''
     });
     setEditingTeacher(null);
@@ -366,6 +380,19 @@ const TeachersManagement = () => {
                     placeholder="e.g., Class 1, Class 2"
                     required
                   />
+                </div>
+                <div>
+                  <Label htmlFor="photo">Photo URL *</Label>
+                  <Input
+                    id="photo"
+                    value={formData.photo}
+                    onChange={(e) => setFormData({...formData, photo: e.target.value})}
+                    placeholder="Photo URL (Required)"
+                    required={!editingTeacher}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Photo is required for all teachers
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={isLoading}>

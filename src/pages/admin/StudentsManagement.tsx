@@ -170,33 +170,33 @@ const StudentsManagement = () => {
       const password = formData.password || `student${formData.rollNo}`;
       const studentEmail = `student${formData.rollNo}@school.edu.np`;
 
-      // Create auth user using Admin API
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-        email: studentEmail,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: formData.name,
+      // Create auth user via edge function
+      const { data: authData, error: authError } = await supabase.functions.invoke('create-user-account', {
+        body: {
+          email: studentEmail,
+          password: password,
           role: 'student',
+          fullName: formData.name,
           phone: formData.phone
         }
       });
 
-      if (authError) {
+      if (authError || !authData?.user) {
         toast({
           title: 'Error',
-          description: authError.message || 'Failed to create student account',
+          description: authError?.message || authData?.error || 'Failed to create student account',
           variant: 'destructive'
         });
         setIsLoading(false);
         return;
       }
 
-      if (authUser.user) {
+      const authUser = authData.user;
+      if (authUser) {
         const { error } = await supabase
           .from('students')
           .insert([{
-            user_id: authUser.user.id,
+            user_id: authUser.id,
             name: formData.name,
             class: formData.class,
             section: formData.section,
