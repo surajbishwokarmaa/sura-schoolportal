@@ -1,27 +1,27 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ArrowLeft, Mail, Lock } from 'lucide-react';
+import { Users, ArrowLeft, Mail, Lock, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const teacherLoginSchema = z.object({
-  email: z.string()
+  identifier: z.string()
     .trim()
-    .min(1, 'Email is required')
-    .email('Please enter a valid email address')
-    .max(255, 'Email must be less than 255 characters'),
+    .min(1, 'Email or Phone is required')
+    .max(255, 'Input must be less than 255 characters'),
   password: z.string()
     .min(1, 'Password is required')
     .max(128, 'Password must be less than 128 characters'),
 });
 
 const TeacherAuth = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ const TeacherAuth = () => {
     setLoading(true);
 
     // Validate input
-    const validation = teacherLoginSchema.safeParse({ email, password });
+    const validation = teacherLoginSchema.safeParse({ identifier, password });
     
     if (!validation.success) {
       const firstError = validation.error.errors[0];
@@ -46,12 +46,37 @@ const TeacherAuth = () => {
       return;
     }
 
-    const { error } = await signIn(email, password);
+    // Check if identifier is email or phone
+    const isEmail = identifier.includes('@');
+    let emailToUse = identifier;
+
+    // If phone number, look up teacher's email
+    if (!isEmail) {
+      const { data: teacherData, error: lookupError } = await supabase
+        .from('teachers')
+        .select('email')
+        .eq('phone', identifier)
+        .maybeSingle();
+
+      if (lookupError || !teacherData || !teacherData.email) {
+        toast({
+          title: "Login Failed",
+          description: "No teacher found with this phone number. Please contact the administrator.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      emailToUse = teacherData.email;
+    }
+
+    const { error } = await signIn(emailToUse, password);
 
     if (error) {
       toast({
         title: "Login Failed",
-        description: "Invalid credentials. Please check your email and password.",
+        description: "Invalid credentials. Please check your email/phone and password.",
         variant: "destructive"
       });
     } else {
@@ -89,19 +114,21 @@ const TeacherAuth = () => {
           <Card className="p-8">
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="identifier">Email or Phone Number</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="teacher@school.edu.np"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="identifier"
+                    placeholder="Email or Phone Number"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     className="pl-10"
                     required
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  You can use either your email or phone number to login
+                </p>
               </div>
 
               <div className="space-y-2">
