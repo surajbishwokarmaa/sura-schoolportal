@@ -143,7 +143,7 @@ const AdminDashboard = () => {
                 Manage all aspects of Buddha Deep English Boarding School's result management system. 
                 Add students and teachers, manage results, and publish report cards.
               </p>
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={() => navigate('/admin/system-guide')}>
                 View System Guide
               </Button>
             </div>
