@@ -50,6 +50,17 @@ serve(async (req) => {
 
     if (authError) {
       console.error('Auth error:', authError);
+      
+      // Handle duplicate email error with clear message
+      if (authError.message?.includes('already been registered')) {
+        return new Response(
+          JSON.stringify({ 
+            error: `This email (${email}) is already registered. Please use a different roll number or contact admin to reset the existing account.` 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: authError.message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
