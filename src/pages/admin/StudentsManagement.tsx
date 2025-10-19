@@ -181,11 +181,13 @@ const StudentsManagement = () => {
         }
       });
 
-      if (authError || !authData?.user) {
+      if (authError || authData?.error || !authData?.user) {
+        const errorMessage = authData?.error || authError?.message || 'Failed to create student account';
         toast({
           title: 'Error',
-          description: authError?.message || authData?.error || 'Failed to create student account',
-          variant: 'destructive'
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 10000
         });
         setIsLoading(false);
         return;
