@@ -11,17 +11,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const studentLoginSchema = z.object({
-  identifier: z.string()
+  parentPhone: z.string()
     .trim()
-    .min(1, 'Email or Phone is required')
-    .max(255, 'Input must be less than 255 characters'),
+    .min(10, 'Phone number must be at least 10 digits')
+    .max(15, 'Phone number must be less than 15 digits')
+    .regex(/^\d+$/, 'Phone number must contain only digits'),
   password: z.string()
     .min(1, 'Password is required')
     .max(128, 'Password must be less than 128 characters'),
 });
 
 const StudentAuth = () => {
-  const [identifier, setIdentifier] = useState('');
+  const [parentPhone, setParentPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ const StudentAuth = () => {
     setLoading(true);
 
     // Validate input
-    const validation = studentLoginSchema.safeParse({ identifier, password });
+    const validation = studentLoginSchema.safeParse({ parentPhone, password });
     
     if (!validation.success) {
       const firstError = validation.error.errors[0];
@@ -46,38 +47,32 @@ const StudentAuth = () => {
       return;
     }
 
-    // Check if identifier is email or phone
-    const isEmail = identifier.includes('@');
-    let emailToUse = identifier;
+    // Look up student's email using parent phone
+    const { data: studentData, error: lookupError } = await supabase
+      .from('students')
+      .select('roll_no')
+      .eq('parent_phone', parentPhone)
+      .maybeSingle();
 
-    // If phone number, look up student's email
-    if (!isEmail) {
-      const { data: studentData, error: lookupError } = await supabase
-        .from('students')
-        .select('roll_no')
-        .or(`phone.eq.${identifier},parent_phone.eq.${identifier}`)
-        .maybeSingle();
-
-      if (lookupError || !studentData) {
-        toast({
-          title: "Login Failed",
-          description: "No student found with this phone number. Please contact the administrator.",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Construct email from roll number
-      emailToUse = `student${studentData.roll_no}@school.edu.np`;
+    if (lookupError || !studentData) {
+      toast({
+        title: "Login Failed",
+        description: "No student found with this parent phone number. Please verify the number or contact the administrator.",
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
     }
+
+    // Construct email from roll number
+    const emailToUse = `student${studentData.roll_no}@school.edu.np`;
 
     const { error } = await signIn(emailToUse, password);
 
     if (error) {
       toast({
         title: "Login Failed",
-        description: "Invalid credentials. Please check your email/phone and password.",
+        description: "Invalid password. Please check your password and try again.",
         variant: "destructive"
       });
     } else {
@@ -109,26 +104,26 @@ const StudentAuth = () => {
               <GraduationCap className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold">Student & Parent Login</h1>
-            <p className="text-muted-foreground">Access your academic records and results</p>
+            <p className="text-muted-foreground">Login using parent's phone number</p>
           </div>
 
           <Card className="p-8">
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="identifier">Email or Phone Number</Label>
+                <Label htmlFor="parentPhone">Parent's Phone Number</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
                   <Input
-                    id="identifier"
-                    placeholder="Email or Phone Number"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
+                    id="parentPhone"
+                    placeholder="Parent's Phone Number"
+                    value={parentPhone}
+                    onChange={(e) => setParentPhone(e.target.value)}
                     className="pl-10"
                     required
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  You can use either your email or phone number to login
+                  Enter the parent phone number registered with the school
                 </p>
               </div>
 
