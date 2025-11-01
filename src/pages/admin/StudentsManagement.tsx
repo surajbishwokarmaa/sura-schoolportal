@@ -246,11 +246,35 @@ const StudentsManagement = () => {
         }
       });
 
-      if (authError || authData?.error || !authData?.user) {
-        const errorMessage = authData?.error || authError?.message || 'Failed to create student account';
+      // Handle edge function errors (including 400 responses)
+      if (authError) {
         toast({
           title: 'Error',
-          description: errorMessage,
+          description: authError.message || 'Failed to create student account',
+          variant: 'destructive',
+          duration: 10000
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Handle errors returned in the response body
+      if (authData?.error) {
+        toast({
+          title: 'Cannot Create Student',
+          description: authData.error,
+          variant: 'destructive',
+          duration: 10000
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if user was created successfully
+      if (!authData?.user) {
+        toast({
+          title: 'Error',
+          description: 'Failed to create student account - no user data returned',
           variant: 'destructive',
           duration: 10000
         });
