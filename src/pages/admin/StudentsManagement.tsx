@@ -61,13 +61,14 @@ const StudentsManagement = () => {
     gender: '',
     dob: '',
     parentName: '',
-    phone: '',
     parentPhone: '',
     address: '',
-    photo: '',
     password: ''
   });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || userRole !== 'admin')) {
@@ -119,6 +120,61 @@ const StudentsManagement = () => {
     return cls?.sections || [];
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: 'Error',
+          description: 'Photo size must be less than 2MB',
+          variant: 'destructive'
+        });
+        return;
+      }
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadPhoto = async (file: File, studentId: string): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${studentId}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('student-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: `Failed to upload photo: ${error.message}`,
+        variant: 'destructive'
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -134,7 +190,6 @@ const StudentsManagement = () => {
           gender: formData.gender as 'male' | 'female' | 'other' | null,
           dob: formData.dob,
           parent_name: formData.parentName,
-          phone: formData.phone,
           parent_phone: formData.parentPhone,
           address: formData.address
         })
@@ -155,8 +210,8 @@ const StudentsManagement = () => {
         resetForm();
       }
     } else {
-      // Validate photo is provided
-      if (!formData.photo || formData.photo.trim() === '') {
+      // Validate photo is uploaded
+      if (!photoFile) {
         toast({
           title: 'Error',
           description: 'Photo is required for all students',
@@ -166,18 +221,28 @@ const StudentsManagement = () => {
         return;
       }
 
-      // Auto-generate password if not provided
-      const password = formData.password || `student${formData.rollNo}`;
+      // Validate password
+      if (!formData.password || formData.password.trim() === '') {
+        toast({
+          title: 'Error',
+          description: 'Password is required',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const password = formData.password;
       const studentEmail = `student${formData.rollNo}@school.edu.np`;
 
-      // Create auth user via edge function
+      // Create auth user via edge function - use parent phone for login
       const { data: authData, error: authError } = await supabase.functions.invoke('create-user-account', {
         body: {
           email: studentEmail,
           password: password,
           role: 'student',
           fullName: formData.name,
-          phone: formData.phone
+          phone: formData.parentPhone
         }
       });
 
@@ -194,40 +259,53 @@ const StudentsManagement = () => {
       }
 
       const authUser = authData.user;
-      if (authUser) {
-        const { error } = await supabase
-          .from('students')
-          .insert([{
-            user_id: authUser.id,
-            name: formData.name,
-            class: formData.class,
-            section: formData.section,
-            roll_no: formData.rollNo,
-            gender: formData.gender as 'male' | 'female' | 'other' | undefined,
-            dob: formData.dob,
-            parent_name: formData.parentName,
-            phone: formData.phone,
-            parent_phone: formData.parentPhone,
-            address: formData.address,
-            photo_url: formData.photo,
-            is_active: true
-          }]);
+      
+      // Upload photo first
+      const photoUrl = await uploadPhoto(photoFile, authUser.id);
+      
+      if (!photoUrl) {
+        toast({
+          title: 'Error',
+          description: 'Failed to upload photo. Please try again.',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
 
-        if (error) {
-          toast({
-            title: 'Error',
-            description: 'Failed to create student record',
-            variant: 'destructive'
-          });
-        } else {
-          toast({
-            title: 'Success',
-            description: `Student created successfully! Login: ${studentEmail}, Password: ${password}`,
-            duration: 10000
-          });
-          fetchStudents();
-          resetForm();
-        }
+      // Insert student record with uploaded photo URL
+      const { error } = await supabase
+        .from('students')
+        .insert([{
+          user_id: authUser.id,
+          name: formData.name,
+          class: formData.class,
+          section: formData.section,
+          roll_no: formData.rollNo,
+          gender: formData.gender as 'male' | 'female' | 'other' | undefined,
+          dob: formData.dob,
+          parent_name: formData.parentName,
+          phone: null,
+          parent_phone: formData.parentPhone,
+          address: formData.address,
+          photo_url: photoUrl,
+          is_active: true
+        }]);
+
+      if (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to create student record',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: `Student created successfully! Login with parent phone: ${formData.parentPhone}, Password: ${password}`,
+          duration: 10000
+        });
+        fetchStudents();
+        resetForm();
       }
     }
 
@@ -244,12 +322,11 @@ const StudentsManagement = () => {
       gender: student.gender as any || '',
       dob: student.dob || '',
       parentName: student.parent_name || '',
-      phone: student.phone || '',
       parentPhone: student.parent_phone,
       address: student.address || '',
-      photo: student.photo_url || '',
       password: ''
     });
+    setPhotoPreview(student.photo_url || '');
     setIsDialogOpen(true);
   };
 
@@ -287,12 +364,12 @@ const StudentsManagement = () => {
       gender: '',
       dob: '',
       parentName: '',
-      phone: '',
       parentPhone: '',
       address: '',
-      photo: '',
       password: ''
     });
+    setPhotoFile(null);
+    setPhotoPreview('');
     setEditingStudent(null);
     setIsDialogOpen(false);
   };
@@ -418,16 +495,6 @@ const StudentsManagement = () => {
                       onChange={(e) => setFormData({...formData, dob: e.target.value})}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="phone">Student Phone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      required={!editingStudent}
-                      disabled={!!editingStudent}
-                    />
-                  </div>
                   {!editingStudent && (
                     <div>
                       <Label htmlFor="password">Password</Label>
@@ -439,6 +506,9 @@ const StudentsManagement = () => {
                         required
                         minLength={8}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Student will login using parent's phone + this password
+                      </p>
                     </div>
                   )}
                   <div>
@@ -459,19 +529,34 @@ const StudentsManagement = () => {
                     />
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="photo">Photo URL *</Label>
-                  <Input
-                    id="photo"
-                    value={formData.photo}
-                    onChange={(e) => setFormData({...formData, photo: e.target.value})}
-                    placeholder="Photo URL (Required)"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Photo is required for all students
-                  </p>
-                </div>
+                {!editingStudent && (
+                  <div>
+                    <Label htmlFor="photo">Upload Photo *</Label>
+                    <Input
+                      id="photo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Photo is required (max 2MB). Click Browse to select an image.
+                    </p>
+                    {photoPreview && (
+                      <div className="mt-2">
+                        <img src={photoPreview} alt="Preview" className="w-24 h-24 object-cover rounded" />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {editingStudent && (
+                  <div>
+                    <Label>Current Photo</Label>
+                    <div className="mt-2">
+                      <img src={photoPreview} alt="Student" className="w-24 h-24 object-cover rounded" />
+                    </div>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="address">Address</Label>
                   <Input
@@ -481,8 +566,8 @@ const StudentsManagement = () => {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Saving...' : editingStudent ? 'Update' : 'Create'}
+                  <Button type="submit" disabled={isLoading || isUploading}>
+                    {isLoading || isUploading ? 'Saving...' : editingStudent ? 'Update' : 'Create'}
                   </Button>
                   <Button type="button" variant="outline" onClick={resetForm}>
                     Cancel
