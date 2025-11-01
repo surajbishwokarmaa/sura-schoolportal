@@ -309,7 +309,6 @@ const StudentsManagement = () => {
           gender: formData.gender as 'male' | 'female' | 'other' | undefined,
           dob: formData.dob,
           parent_name: formData.parentName,
-          phone: null,
           parent_phone: formData.parentPhone,
           address: formData.address,
           photo_url: photoUrl,
