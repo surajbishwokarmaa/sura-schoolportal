@@ -66,9 +66,11 @@ const ResultEntry = () => {
   };
 
   const fetchStudents = async () => {
-    if (!selectedClass || !selectedSection) return;
+    if (!selectedClass || !selectedSection || !selectedSubject) return;
 
-    const { data } = await supabase
+    setLoading(true);
+
+    const { data: studentsData } = await supabase
       .from('students')
       .select('id, name, roll_no')
       .eq('class', selectedClass)
@@ -76,21 +78,40 @@ const ResultEntry = () => {
       .eq('is_active', true)
       .order('roll_no');
 
-    if (data) {
-      setStudents(data);
-      setResults(data.map(s => ({ 
-        student_id: s.id, 
-        theory_marks: 0, 
-        practical_marks: 0 
-      })));
+    if (studentsData) {
+      setStudents(studentsData);
+
+      // Check if results already exist for this class, section, subject, and term
+      const { data: existingResults } = await supabase
+        .from('results')
+        .select('student_id, theory_marks, practical_marks')
+        .eq('class', selectedClass)
+        .eq('subject', selectedSubject)
+        .eq('term', selectedTerm);
+
+      // Map existing results or default to 0
+      const resultsMap = new Map(
+        existingResults?.map(r => [r.student_id, r]) || []
+      );
+
+      setResults(studentsData.map(s => {
+        const existing = resultsMap.get(s.id);
+        return {
+          student_id: s.id,
+          theory_marks: existing?.theory_marks || 0,
+          practical_marks: existing?.practical_marks || 0
+        };
+      }));
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
-    if (selectedClass && selectedSection) {
+    if (selectedClass && selectedSection && selectedSubject) {
       fetchStudents();
     }
-  }, [selectedClass, selectedSection]);
+  }, [selectedClass, selectedSection, selectedSubject, selectedTerm]);
 
   const calculateGradeAndGPA = (totalMarks: number) => {
     if (totalMarks >= 90) return { grade: 'A+', gpa: 4.0 };

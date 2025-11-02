@@ -158,14 +158,17 @@ const StudentDashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+          <Card 
+            className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => navigate('/student/marksheet')}
+          >
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-500/10 rounded-lg">
                 <FileText className="w-6 h-6 text-blue-500" />
               </div>
               <div>
-                <h3 className="font-semibold">My Results</h3>
-                <p className="text-sm text-muted-foreground">{results.length} records</p>
+                <h3 className="font-semibold">View Marksheet</h3>
+                <p className="text-sm text-muted-foreground">Download report card</p>
               </div>
             </div>
           </Card>
@@ -176,8 +179,8 @@ const StudentDashboard = () => {
                 <BookOpen className="w-6 h-6 text-green-500" />
               </div>
               <div>
-                <h3 className="font-semibold">Subjects</h3>
-                <p className="text-sm text-muted-foreground">View all subjects</p>
+                <h3 className="font-semibold">My Results</h3>
+                <p className="text-sm text-muted-foreground">{results.length} records</p>
               </div>
             </div>
           </Card>

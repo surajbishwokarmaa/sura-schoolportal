@@ -33,61 +33,81 @@ const StudentAuth = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Validate input
-    const validation = studentLoginSchema.safeParse({ parentPhone, password });
-    
-    if (!validation.success) {
-      const firstError = validation.error.errors[0];
+    try {
+      // Validate input and trim whitespace
+      const cleanPhone = parentPhone.trim();
+      const validation = studentLoginSchema.safeParse({ parentPhone: cleanPhone, password });
+      
+      if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        toast({
+          title: "Validation Error",
+          description: firstError.message,
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Look up student's email using parent phone
+      const { data: studentData, error: lookupError } = await supabase
+        .from('students')
+        .select('roll_no, user_id, name')
+        .eq('parent_phone', cleanPhone)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (lookupError) {
+        console.error('Database lookup error:', lookupError);
+        toast({
+          title: "Login Failed",
+          description: "Database error. Please try again or contact administrator.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!studentData) {
+        toast({
+          title: "Login Failed",
+          description: "No active student found with this parent phone number. Please verify the number or contact the administrator.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Construct email from roll number
+      const emailToUse = `student${studentData.roll_no}@school.edu.np`;
+
+      const { error } = await signIn(emailToUse, password);
+
+      if (error) {
+        console.error('Sign in error:', error);
+        toast({
+          title: "Login Failed",
+          description: "Invalid password. Please check your password and try again.",
+          variant: "destructive"
+        });
+        setLoading(false);
+      } else {
+        toast({
+          title: `Welcome ${studentData.name}!`,
+          description: "Redirecting to dashboard...",
+        });
+        // Navigate immediately after successful login
+        setTimeout(() => navigate('/student'), 150);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
       toast({
-        title: "Validation Error",
-        description: firstError.message,
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
       setLoading(false);
-      return;
     }
-
-    // Look up student's email using parent phone
-    const { data: studentData, error: lookupError } = await supabase
-      .from('students')
-      .select('roll_no, user_id')
-      .eq('parent_phone', parentPhone)
-      .maybeSingle();
-
-    if (lookupError || !studentData) {
-      toast({
-        title: "Login Failed",
-        description: "No student found with this parent phone number. Please verify the number or contact the administrator.",
-        variant: "destructive"
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Construct email from roll number
-    const emailToUse = `student${studentData.roll_no}@school.edu.np`;
-
-    const { error } = await signIn(emailToUse, password);
-
-    if (error) {
-      toast({
-        title: "Login Failed",
-        description: "Invalid password. Please check your password and try again.",
-        variant: "destructive"
-      });
-      setLoading(false);
-    } else {
-      toast({
-        title: "Welcome!",
-        description: "Redirecting to dashboard...",
-      });
-      // Small delay to ensure auth state is updated
-      setTimeout(() => navigate('/student'), 100);
-    }
-
-    setLoading(false);
-
-    setLoading(false);
   };
 
   return (

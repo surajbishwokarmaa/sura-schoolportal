@@ -18,6 +18,7 @@ import BulkUploadManagement from "./pages/admin/BulkUploadManagement";
 import NoticesManagement from "./pages/admin/NoticesManagement";
 import SystemGuide from "./pages/admin/SystemGuide";
 import StudentDashboard from "./pages/student/StudentDashboard";
+import ViewMarksheet from "./pages/student/ViewMarksheet";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import ResultEntry from "./pages/teacher/ResultEntry";
 import ViewStudents from "./pages/teacher/ViewStudents";
@@ -40,7 +41,8 @@ const App = () => (
             <Route path="/auth/teacher" element={<TeacherAuth />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
             <Route path="/auth/admin-setup" element={<AdminSetup />} />
-              <Route path="/student" element={<StudentDashboard />} />
+          <Route path="/student" element={<StudentDashboard />} />
+          <Route path="/student/marksheet" element={<ViewMarksheet />} />
               <Route path="/teacher" element={<TeacherDashboard />} />
               <Route path="/teacher/result-entry" element={<ResultEntry />} />
               <Route path="/teacher/students" element={<ViewStudents />} />
