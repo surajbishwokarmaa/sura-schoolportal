@@ -19,6 +19,9 @@ import NoticesManagement from "./pages/admin/NoticesManagement";
 import SystemGuide from "./pages/admin/SystemGuide";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
+import ResultEntry from "./pages/teacher/ResultEntry";
+import ViewStudents from "./pages/teacher/ViewStudents";
+import ViewResults from "./pages/teacher/ViewResults";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,8 +40,11 @@ const App = () => (
             <Route path="/auth/teacher" element={<TeacherAuth />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
             <Route path="/auth/admin-setup" element={<AdminSetup />} />
-            <Route path="/student" element={<StudentDashboard />} />
-            <Route path="/teacher" element={<TeacherDashboard />} />
+              <Route path="/student" element={<StudentDashboard />} />
+              <Route path="/teacher" element={<TeacherDashboard />} />
+              <Route path="/teacher/result-entry" element={<ResultEntry />} />
+              <Route path="/teacher/students" element={<ViewStudents />} />
+              <Route path="/teacher/results" element={<ViewResults />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/classes" element={<ClassesManagement />} />
             <Route path="/admin/teachers" element={<TeachersManagement />} />

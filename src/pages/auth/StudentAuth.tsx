@@ -50,7 +50,7 @@ const StudentAuth = () => {
     // Look up student's email using parent phone
     const { data: studentData, error: lookupError } = await supabase
       .from('students')
-      .select('roll_no')
+      .select('roll_no, user_id')
       .eq('parent_phone', parentPhone)
       .maybeSingle();
 
@@ -75,13 +75,17 @@ const StudentAuth = () => {
         description: "Invalid password. Please check your password and try again.",
         variant: "destructive"
       });
+      setLoading(false);
     } else {
       toast({
         title: "Welcome!",
-        description: "Login successful. Redirecting to dashboard...",
+        description: "Redirecting to dashboard...",
       });
-      navigate('/student');
+      // Small delay to ensure auth state is updated
+      setTimeout(() => navigate('/student'), 100);
     }
+
+    setLoading(false);
 
     setLoading(false);
   };

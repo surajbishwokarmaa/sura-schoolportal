@@ -79,15 +79,16 @@ const TeacherAuth = () => {
         description: "Invalid credentials. Please check your email/phone and password.",
         variant: "destructive"
       });
+      setLoading(false);
     } else {
       toast({
         title: "Welcome Back!",
-        description: "Login successful. Redirecting to dashboard...",
+        description: "Redirecting to dashboard...",
       });
-      navigate('/teacher');
+      // Small delay to ensure auth state is updated
+      setTimeout(() => navigate('/teacher'), 100);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (

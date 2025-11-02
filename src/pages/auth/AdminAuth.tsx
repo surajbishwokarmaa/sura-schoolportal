@@ -55,15 +55,16 @@ const AdminAuth = () => {
         description: "Invalid admin credentials. Please check your email and password.",
         variant: "destructive"
       });
+      setLoading(false);
     } else {
       toast({
         title: "Admin Access Granted",
         description: "Welcome to the admin dashboard.",
       });
-      navigate('/admin');
+      // Small delay to ensure auth state is updated
+      setTimeout(() => navigate('/admin'), 100);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -124,18 +125,6 @@ const AdminAuth = () => {
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 {loading ? "Authenticating..." : "Access Admin Panel"}
               </Button>
-
-              <div className="text-center text-sm text-muted-foreground mt-4">
-                <p>Contact the system administrator for access credentials</p>
-                <Button
-                  variant="link"
-                  type="button"
-                  onClick={() => navigate('/auth/admin-setup')}
-                  className="mt-2"
-                >
-                  First time? Setup admin account
-                </Button>
-              </div>
             </form>
           </Card>
         </div>

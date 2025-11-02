@@ -121,7 +121,7 @@ const TeacherDashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/teacher/students')}>
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-500/10 rounded-lg">
                 <Users className="w-6 h-6 text-blue-500" />
@@ -145,26 +145,26 @@ const TeacherDashboard = () => {
             </div>
           </Card>
 
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/teacher/result-entry')}>
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-500/10 rounded-lg">
                 <FileText className="w-6 h-6 text-purple-500" />
               </div>
               <div>
                 <h3 className="font-semibold">Results Entry</h3>
-                <p className="text-sm text-muted-foreground">Manage results</p>
+                <p className="text-sm text-muted-foreground">Add marks</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/teacher/results')}>
             <div className="flex items-center gap-4">
               <div className="p-3 bg-orange-500/10 rounded-lg">
                 <Bell className="w-6 h-6 text-orange-500" />
               </div>
               <div>
-                <h3 className="font-semibold">Notices</h3>
-                <p className="text-sm text-muted-foreground">View notices</p>
+                <h3 className="font-semibold">View Results</h3>
+                <p className="text-sm text-muted-foreground">Manage results</p>
               </div>
             </div>
           </Card>
