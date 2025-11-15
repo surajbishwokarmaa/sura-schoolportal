@@ -94,9 +94,10 @@ const StudentAuth = () => {
 
       console.log('✅ Student found:', { name: studentData.name, roll_no: studentData.roll_no });
       
-      // Construct email from roll number
-      const emailToUse = `student${studentData.roll_no}@school.edu.np`;
+      // Construct email from roll number (trim to ensure consistency)
+      const emailToUse = `student${studentData.roll_no.trim()}@school.edu.np`;
       console.log('🔍 Attempting sign in with email:', emailToUse);
+      console.log('🔍 Password length:', cleanPassword.length);
 
       const { error } = await signIn(emailToUse, cleanPassword);
 

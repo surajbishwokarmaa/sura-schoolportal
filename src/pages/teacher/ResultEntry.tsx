@@ -66,28 +66,49 @@ const ResultEntry = () => {
   };
 
   const fetchStudents = async () => {
-    if (!selectedClass || !selectedSection || !selectedSubject) return;
+    if (!selectedClass || !selectedSection || !selectedSubject) {
+      setStudents([]);
+      setResults([]);
+      return;
+    }
 
     setLoading(true);
 
-    const { data: studentsData } = await supabase
-      .from('students')
-      .select('id, name, roll_no')
-      .eq('class', selectedClass)
-      .eq('section', selectedSection)
-      .eq('is_active', true)
-      .order('roll_no');
+    try {
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('id, name, roll_no')
+        .eq('class', selectedClass)
+        .eq('section', selectedSection)
+        .eq('is_active', true)
+        .order('roll_no');
 
-    if (studentsData) {
+      if (studentsError) throw studentsError;
+
+      if (!studentsData || studentsData.length === 0) {
+        toast({
+          title: 'No Students Found',
+          description: `No students found in ${selectedClass} - ${selectedSection}`,
+        });
+        setStudents([]);
+        setResults([]);
+        setLoading(false);
+        return;
+      }
+
       setStudents(studentsData);
 
       // Check if results already exist for this class, section, subject, and term
-      const { data: existingResults } = await supabase
+      const { data: existingResults, error: resultsError } = await supabase
         .from('results')
         .select('student_id, theory_marks, practical_marks')
         .eq('class', selectedClass)
         .eq('subject', selectedSubject)
         .eq('term', selectedTerm);
+
+      if (resultsError) {
+        console.error('Error fetching existing results:', resultsError);
+      }
 
       // Map existing results or default to 0
       const resultsMap = new Map(
@@ -102,9 +123,18 @@ const ResultEntry = () => {
           practical_marks: existing?.practical_marks || 0
         };
       }));
+    } catch (error: any) {
+      console.error('Error fetching students:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to fetch students',
+        variant: 'destructive'
+      });
+      setStudents([]);
+      setResults([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -272,7 +302,19 @@ const ResultEntry = () => {
             </div>
           </div>
 
-          {students.length > 0 && (
+          {loading && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading students...</p>
+            </div>
+          )}
+
+          {!loading && students.length === 0 && selectedClass && selectedSection && selectedSubject && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No students found. Please check your selections.</p>
+            </div>
+          )}
+
+          {!loading && students.length > 0 && (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full">
