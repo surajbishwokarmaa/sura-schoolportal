@@ -54,14 +54,10 @@ const StudentAuth = () => {
         return;
       }
 
-      // Look up student's email using parent phone
+      // Look up student's email using secure database function (bypasses RLS)
       console.log('🔍 Looking up student with parent_phone:', cleanPhone);
       const { data: studentData, error: lookupError } = await supabase
-        .from('students')
-        .select('roll_no, user_id, name, parent_phone')
-        .eq('parent_phone', cleanPhone)
-        .eq('is_active', true)
-        .maybeSingle();
+        .rpc('get_student_login_info', { parent_phone_input: cleanPhone });
 
       if (lookupError) {
         console.error('❌ Database lookup error:', lookupError);
@@ -74,15 +70,8 @@ const StudentAuth = () => {
         return;
       }
 
-      if (!studentData) {
+      if (!studentData || studentData.length === 0) {
         console.error('❌ No student found for phone:', cleanPhone);
-        // Query to see all student phones for debugging
-        const { data: allStudents } = await supabase
-          .from('students')
-          .select('parent_phone, roll_no, name, is_active')
-          .limit(5);
-        console.log('Available students:', allStudents);
-        
         toast({
           title: "Login Failed",
           description: "No active student found with this parent phone number. Please verify the number or contact the administrator.",
@@ -92,10 +81,10 @@ const StudentAuth = () => {
         return;
       }
 
-      console.log('✅ Student found:', { name: studentData.name, roll_no: studentData.roll_no });
+      const student = studentData[0];
+      console.log('✅ Student found:', { name: student.student_name, roll_no: student.roll_no });
       
-      // Construct email from roll number (trim to ensure consistency)
-      const emailToUse = `student${studentData.roll_no.trim()}@school.edu.np`;
+      const emailToUse = student.student_email;
       console.log('🔍 Attempting sign in with email:', emailToUse);
       console.log('🔍 Password length:', cleanPassword.length);
 
@@ -113,7 +102,7 @@ const StudentAuth = () => {
       } else {
         console.log('✅ Login successful!');
         toast({
-          title: `Welcome ${studentData.name}!`,
+          title: `Welcome ${student.student_name}!`,
           description: "Redirecting to dashboard...",
         });
         // Navigate immediately after successful login
@@ -132,10 +121,10 @@ const StudentAuth = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
         <Button
           variant="ghost"
-          className="mb-6"
+          className="mb-4 sm:mb-6"
           onClick={() => navigate('/select-role')}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -143,26 +132,28 @@ const StudentAuth = () => {
         </Button>
 
         <div className="max-w-md mx-auto">
-          <div className="text-center mb-8 space-y-2">
-            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4">
-              <GraduationCap className="w-8 h-8 text-white" />
+          <div className="text-center mb-6 sm:mb-8 space-y-2">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-3 sm:mb-4">
+              <GraduationCap className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold">Student & Parent Login</h1>
-            <p className="text-muted-foreground">Login using parent's phone number</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">Student & Parent Login</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Login using parent's phone number</p>
           </div>
 
-          <Card className="p-8">
-            <form onSubmit={handleLogin} className="space-y-6">
+          <Card className="p-4 sm:p-8">
+            <form onSubmit={handleLogin} className="space-y-4 sm:space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="parentPhone">Parent's Phone Number</Label>
+                <Label htmlFor="parentPhone" className="text-sm sm:text-base">Parent's Phone Number</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-3 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                   <Input
                     id="parentPhone"
+                    type="tel"
+                    inputMode="numeric"
                     placeholder="Parent's Phone Number"
                     value={parentPhone}
                     onChange={(e) => setParentPhone(e.target.value)}
-                    className="pl-10"
+                    className="pl-9 sm:pl-10 text-base"
                     required
                   />
                 </div>
@@ -172,26 +163,26 @@ const StudentAuth = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm sm:text-base">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-3 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                   <Input
                     id="password"
                     type="password"
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-9 sm:pl-10 text-base"
                     required
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full text-base" size="lg" disabled={loading}>
                 {loading ? "Logging in..." : "Login"}
               </Button>
 
-              <div className="text-center text-sm text-muted-foreground mt-4">
+              <div className="text-center text-xs sm:text-sm text-muted-foreground mt-4">
                 <p>Use the credentials provided by the school administrator</p>
                 <p className="mt-2">Need help? Contact admin</p>
               </div>
