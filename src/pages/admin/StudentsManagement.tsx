@@ -232,8 +232,15 @@ const StudentsManagement = () => {
         return;
       }
 
-      const password = formData.password;
-      const studentEmail = `student${formData.rollNo}@school.edu.np`;
+      const password = formData.password.trim();
+      const studentEmail = `student${formData.rollNo.trim()}@school.edu.np`;
+
+      console.log('Creating student account:', { 
+        email: studentEmail, 
+        rollNo: formData.rollNo.trim(),
+        parentPhone: formData.parentPhone.trim(),
+        passwordLength: password.length 
+      });
 
       // Create auth user via edge function - use parent phone for login
       const { data: authData, error: authError } = await supabase.functions.invoke('create-user-account', {
@@ -241,8 +248,8 @@ const StudentsManagement = () => {
           email: studentEmail,
           password: password,
           role: 'student',
-          fullName: formData.name,
-          phone: formData.parentPhone
+          fullName: formData.name.trim(),
+          phone: formData.parentPhone.trim()
         }
       });
 
@@ -302,15 +309,15 @@ const StudentsManagement = () => {
         .from('students')
         .insert([{
           user_id: authUser.id,
-          name: formData.name,
+          name: formData.name.trim(),
           class: formData.class,
           section: formData.section,
-          roll_no: formData.rollNo,
+          roll_no: formData.rollNo.trim(),
           gender: formData.gender as 'male' | 'female' | 'other' | undefined,
           dob: formData.dob,
-          parent_name: formData.parentName,
-          parent_phone: formData.parentPhone,
-          address: formData.address,
+          parent_name: formData.parentName?.trim() || null,
+          parent_phone: formData.parentPhone.trim(),
+          address: formData.address?.trim() || null,
           photo_url: photoUrl,
           is_active: true
         }]);
