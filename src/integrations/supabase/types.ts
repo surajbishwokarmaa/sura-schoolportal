@@ -422,6 +422,14 @@ export type Database = {
           grade: string
         }[]
       }
+      get_student_login_info: {
+        Args: { parent_phone_input: string }
+        Returns: {
+          roll_no: string
+          student_email: string
+          student_name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
