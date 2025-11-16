@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, ArrowLeft, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -528,13 +529,13 @@ const StudentsManagement = () => {
                   {!editingStudent && (
                     <div>
                       <Label htmlFor="password">Password</Label>
-                      <Input
+                      <PasswordInput
                         id="password"
-                        type="password"
                         value={formData.password}
                         onChange={(e) => setFormData({...formData, password: e.target.value})}
                         required
                         minLength={8}
+                        placeholder="Enter password (min 8 characters)"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         Student will login using parent's phone + this password

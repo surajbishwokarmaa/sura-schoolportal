@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_years: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          id: string
+          is_current: boolean | null
+          start_date: string
+          updated_at: string | null
+          year_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          id?: string
+          is_current?: boolean | null
+          start_date: string
+          updated_at?: string | null
+          year_name: string
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          is_current?: boolean | null
+          start_date?: string
+          updated_at?: string | null
+          year_name?: string
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           created_at: string
@@ -35,6 +65,30 @@ export type Database = {
           name?: string
           sections?: string[] | null
           subjects?: Json
+        }
+        Relationships: []
+      }
+      exam_types: {
+        Row: {
+          code: string
+          created_at: string | null
+          display_order: number
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          display_order: number
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          name?: string
         }
         Relationships: []
       }
@@ -132,8 +186,10 @@ export type Database = {
       }
       results: {
         Row: {
+          academic_year_id: string | null
           class: string
           created_at: string
+          exam_type: string | null
           gpa: number | null
           grade: string | null
           id: string
@@ -150,8 +206,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          academic_year_id?: string | null
           class: string
           created_at?: string
+          exam_type?: string | null
           gpa?: number | null
           grade?: string | null
           id?: string
@@ -168,8 +226,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          academic_year_id?: string | null
           class?: string
           created_at?: string
+          exam_type?: string | null
           gpa?: number | null
           grade?: string | null
           id?: string
@@ -186,6 +246,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "results_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "results_student_id_fkey"
             columns: ["student_id"]
