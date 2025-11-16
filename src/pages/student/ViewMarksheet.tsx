@@ -5,8 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Download, GraduationCap } from 'lucide-react';
-import { Label } from '@/components/ui/label';
+import { ArrowLeft, Download, GraduationCap, FileText } from 'lucide-react';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { generateMarksheetPDF } from '@/lib/pdfGenerator';
+import { calculateOverallGPA, getGradeColor } from '@/lib/gradeCalculator';
+import { useToast } from '@/hooks/use-toast';
 
 interface StudentData {
   id: string;
@@ -29,9 +32,10 @@ interface Result {
 const ViewMarksheet = () => {
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [results, setResults] = useState<Result[]>([]);
-  const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term'>('first_term');
+  const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,7 +73,6 @@ const ViewMarksheet = () => {
       .select('*')
       .eq('student_id', studentData.id)
       .eq('term', selectedTerm)
-      .eq('status', 'approved')
       .order('subject');
 
     if (data) {
@@ -77,47 +80,83 @@ const ViewMarksheet = () => {
     }
   };
 
-  const calculateOverallGPA = () => {
-    if (results.length === 0) return 0;
-    const totalGPA = results.reduce((sum, r) => sum + r.gpa, 0);
-    return (totalGPA / results.length).toFixed(2);
-  };
+  const calculateOverallMetrics = () => {
+    if (results.length === 0) return { gpa: 0, totalMarks: 0, percentage: 0 };
+    
+    const totalMarks = results.reduce((sum, r) => sum + r.total_marks, 0);
+    const maxMarks = results.length * 100;
+    const percentage = (totalMarks / maxMarks) * 100;
+    const gpa = calculateOverallGPA(results);
 
-  const calculateTotalMarks = () => {
-    return results.reduce((sum, r) => sum + r.total_marks, 0);
+    return { gpa, totalMarks, percentage };
   };
 
   const getTermDisplay = () => {
-    if (selectedTerm === 'first_term') return 'First Term';
-    if (selectedTerm === 'second_term') return 'Second Term';
-    return 'Third Term';
+    const termMap: Record<string, string> = {
+      'first_term': 'First Term',
+      'second_term': 'Second Term',
+      'third_term': 'Third Term',
+      'final_term': 'Final Exam'
+    };
+    return termMap[selectedTerm] || 'First Term';
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!studentData || results.length === 0) {
+      toast({
+        title: 'No Results',
+        description: 'No results available to download',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const metrics = calculateOverallMetrics();
+    
+    await generateMarksheetPDF({
+      student: {
+        name: studentData.name,
+        rollNo: studentData.roll_no,
+        class: studentData.class,
+        section: studentData.section,
+        photoUrl: studentData.photo_url
+      },
+      results: results.map(r => ({
+        subject: r.subject,
+        theoryMarks: r.theory_marks,
+        practicalMarks: r.practical_marks,
+        totalMarks: r.total_marks,
+        grade: r.grade,
+        gpa: r.gpa
+      })),
+      term: getTermDisplay(),
+      academicYear: '2081-2082',
+      overallGPA: metrics.gpa,
+      totalMarks: metrics.totalMarks,
+      percentage: metrics.percentage,
+      schoolInfo: {
+        name: 'School Management System',
+        address: 'Kathmandu, Nepal'
+      }
+    });
   };
+
+  const metrics = calculateOverallMetrics();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading marksheet...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      <div className="container mx-auto px-4 py-8 print:py-4">
-        <div className="no-print mb-6 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate('/student')}>
+      <div className="container mx-auto px-4 py-6 sm:py-8">
+        <div className="no-print mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <Button variant="ghost" onClick={() => navigate('/student')} className="self-start">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Button>
-          <div className="flex items-center gap-4">
-            <div className="w-48">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+            <div className="w-full sm:w-48">
               <Select value={selectedTerm} onValueChange={(v: any) => setSelectedTerm(v)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -126,161 +165,124 @@ const ViewMarksheet = () => {
                   <SelectItem value="first_term">First Term</SelectItem>
                   <SelectItem value="second_term">Second Term</SelectItem>
                   <SelectItem value="third_term">Third Term</SelectItem>
+                  <SelectItem value="final_term">Final Exam</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handlePrint}>
+            <Button onClick={handleDownloadPDF} disabled={results.length === 0} className="w-full sm:w-auto">
               <Download className="w-4 h-4 mr-2" />
               Download PDF
             </Button>
           </div>
         </div>
 
-        <Card className="p-8 max-w-4xl mx-auto bg-white">
+        <Card className="p-4 sm:p-8 animate-fade-in">
           {/* Header */}
-          <div className="text-center mb-8 border-b-2 border-primary pb-6">
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <GraduationCap className="w-12 h-12 text-primary" />
+          <div className="text-center border-b-2 border-border pb-4 sm:pb-6 mb-4 sm:mb-6">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
+              </div>
             </div>
-            <h1 className="text-3xl font-bold text-primary mb-2">
-              Buddha Deep English Boarding School
-            </h1>
-            <p className="text-sm text-muted-foreground">Academic Progress Report</p>
-            <p className="text-lg font-semibold mt-2">{getTermDisplay()} - Academic Year 2025</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">School Management System</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mb-1">Kathmandu, Nepal</p>
+            <h2 className="text-lg sm:text-xl font-semibold mt-4 bg-muted py-2 px-4 rounded">
+              Student Marksheet - {getTermDisplay()}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2">Academic Year: 2081-2082</p>
           </div>
 
-          {/* Student Information */}
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            <div className="space-y-2">
-              <div className="flex">
-                <span className="font-semibold min-w-[120px]">Student Name:</span>
-                <span>{studentData?.name}</span>
+          {/* Student Info */}
+          {studentData && (
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 sm:gap-6 mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm sm:text-base">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                  <span className="font-semibold min-w-[120px]">Student Name:</span>
+                  <span>{studentData.name}</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                  <span className="font-semibold min-w-[120px]">Roll Number:</span>
+                  <span>{studentData.roll_no}</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                  <span className="font-semibold min-w-[120px]">Class:</span>
+                  <span>{studentData.class}</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                  <span className="font-semibold min-w-[120px]">Section:</span>
+                  <span>{studentData.section}</span>
+                </div>
               </div>
-              <div className="flex">
-                <span className="font-semibold min-w-[120px]">Roll Number:</span>
-                <span>{studentData?.roll_no}</span>
-              </div>
-              <div className="flex">
-                <span className="font-semibold min-w-[120px]">Class:</span>
-                <span>{studentData?.class}</span>
-              </div>
-              <div className="flex">
-                <span className="font-semibold min-w-[120px]">Section:</span>
-                <span>{studentData?.section}</span>
-              </div>
+              {studentData.photo_url && (
+                <div className="flex justify-center sm:justify-end">
+                  <img
+                    src={studentData.photo_url}
+                    alt="Student"
+                    className="w-24 h-28 sm:w-28 sm:h-32 object-cover border-2 border-border rounded"
+                  />
+                </div>
+              )}
             </div>
-            {studentData?.photo_url && (
-              <div className="flex justify-end">
-                <img
-                  src={studentData.photo_url}
-                  alt={studentData.name}
-                  className="w-32 h-32 object-cover rounded-lg border-2 border-primary"
-                />
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Results Table */}
           {results.length > 0 ? (
             <>
-              <div className="overflow-x-auto mb-6">
-                <table className="w-full border-collapse">
+              <div className="overflow-x-auto mb-6 sm:mb-8">
+                <table className="w-full border-collapse text-sm sm:text-base">
                   <thead>
-                    <tr className="bg-primary/10">
-                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">S.N.</th>
-                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Subject</th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Theory</th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Practical</th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Total</th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">GPA</th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Grade</th>
+                    <tr className="bg-muted">
+                      <th className="border border-border p-2 sm:p-3 text-left">S.N.</th>
+                      <th className="border border-border p-2 sm:p-3 text-left">Subject</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Theory</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Practical</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Total</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Grade</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">GPA</th>
                     </tr>
                   </thead>
                   <tbody>
                     {results.map((result, index) => (
                       <tr key={index} className="hover:bg-muted/50">
-                        <td className="border border-gray-300 px-4 py-2 text-center">{index + 1}</td>
-                        <td className="border border-gray-300 px-4 py-2">{result.subject}</td>
-                        <td className="border border-gray-300 px-4 py-2 text-center">{result.theory_marks}</td>
-                        <td className="border border-gray-300 px-4 py-2 text-center">{result.practical_marks}</td>
-                        <td className="border border-gray-300 px-4 py-2 text-center font-semibold">{result.total_marks}</td>
-                        <td className="border border-gray-300 px-4 py-2 text-center">{result.gpa}</td>
-                        <td className="border border-gray-300 px-4 py-2 text-center">
-                          <span className="px-3 py-1 bg-primary/10 text-primary rounded font-semibold">
-                            {result.grade}
-                          </span>
+                        <td className="border border-border p-2 sm:p-3">{index + 1}</td>
+                        <td className="border border-border p-2 sm:p-3">{result.subject}</td>
+                        <td className="border border-border p-2 sm:p-3 text-center">{result.theory_marks}</td>
+                        <td className="border border-border p-2 sm:p-3 text-center">{result.practical_marks}</td>
+                        <td className="border border-border p-2 sm:p-3 text-center font-semibold">{result.total_marks}</td>
+                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${getGradeColor(result.grade)}`}>
+                          {result.grade}
                         </td>
+                        <td className="border border-border p-2 sm:p-3 text-center">{result.gpa.toFixed(1)}</td>
                       </tr>
                     ))}
-                    <tr className="bg-primary/5 font-bold">
-                      <td colSpan={4} className="border border-gray-300 px-4 py-3 text-right">Overall Total:</td>
-                      <td className="border border-gray-300 px-4 py-3 text-center">{calculateTotalMarks()}</td>
-                      <td colSpan={2} className="border border-gray-300 px-4 py-3 text-center">
-                        GPA: {calculateOverallGPA()}
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
               </div>
 
-              {/* Grading Scale */}
-              <div className="mb-8 p-4 bg-muted/30 rounded-lg">
-                <h3 className="font-semibold mb-3">Grading Scale:</h3>
-                <div className="grid grid-cols-4 gap-2 text-sm">
-                  <div>A+ (4.0): 90-100</div>
-                  <div>A (3.6): 80-89</div>
-                  <div>B+ (3.2): 70-79</div>
-                  <div>B (2.8): 60-69</div>
-                  <div>C+ (2.4): 50-59</div>
-                  <div>C (2.0): 40-49</div>
-                  <div>D (1.6): 35-39</div>
-                  <div>E (0.8): Below 35</div>
-                </div>
-              </div>
-
-              {/* Signatures */}
-              <div className="grid grid-cols-3 gap-8 mt-12 pt-6 border-t-2">
+              {/* Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6 bg-muted/50 rounded-lg">
                 <div className="text-center">
-                  <div className="h-16 border-b border-gray-400 mb-2"></div>
-                  <p className="font-semibold">Class Teacher</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Marks Obtained</p>
+                  <p className="text-2xl sm:text-3xl font-bold">{metrics.totalMarks}</p>
                 </div>
                 <div className="text-center">
-                  <div className="h-16 border-b border-gray-400 mb-2"></div>
-                  <p className="font-semibold">Principal</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Overall GPA</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary">{metrics.gpa.toFixed(2)}</p>
                 </div>
                 <div className="text-center">
-                  <div className="h-16 border-b border-gray-400 mb-2"></div>
-                  <p className="font-semibold">Parent/Guardian</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Percentage</p>
+                  <p className="text-2xl sm:text-3xl font-bold">{metrics.percentage.toFixed(2)}%</p>
                 </div>
-              </div>
-
-              <div className="text-center mt-6 text-sm text-muted-foreground">
-                <p>Date of Issue: {new Date().toLocaleDateString()}</p>
               </div>
             </>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground text-lg">No results available for {getTermDisplay()}</p>
-              <p className="text-sm text-muted-foreground mt-2">Results will appear here once your teacher publishes them.</p>
+            <div className="text-center py-8 sm:py-12">
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-base sm:text-lg text-muted-foreground">No results available for this term</p>
             </div>
           )}
         </Card>
       </div>
-
-      <style>{`
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-          body {
-            background: white !important;
-          }
-          .container {
-            max-width: 100% !important;
-            padding: 0 !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };

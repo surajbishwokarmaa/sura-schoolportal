@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, Users, BookOpen, FileText, Bell } from 'lucide-react';
+import { BookOpen, FileText, Users, Edit, Eye, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { StatCard } from '@/components/ui/stat-card';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 interface TeacherData {
   id: string;
@@ -19,10 +21,15 @@ interface TeacherData {
 }
 
 const TeacherDashboard = () => {
-  const { user, userRole, signOut } = useAuth();
+  const { user, userRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [teacher, setTeacher] = useState<TeacherData | null>(null);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    resultsEntered: 0,
+    pendingResults: 0
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,6 +51,23 @@ const TeacherDashboard = () => {
 
       if (error) throw error;
       setTeacher(data);
+
+      // Fetch statistics
+      const { count: studentsCount } = await supabase
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .in('class', data.classes_assigned);
+
+      const { count: resultsCount } = await supabase
+        .from('results')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', data.id);
+
+      setStats({
+        totalStudents: studentsCount || 0,
+        resultsEntered: resultsCount || 0,
+        pendingResults: 0
+      });
     } catch (error) {
       console.error('Error fetching teacher data:', error);
       toast({
@@ -56,146 +80,148 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/select-role');
-  };
+  const quickActions = [
+    {
+      title: 'Enter Results',
+      description: 'Input student marks & grades',
+      icon: Edit,
+      path: '/teacher/result-entry',
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'View Results',
+      description: 'See entered results',
+      icon: Eye,
+      path: '/teacher/view-results',
+      color: 'from-green-500 to-emerald-600'
+    },
+    {
+      title: 'View Students',
+      description: 'Student list & details',
+      icon: Users,
+      path: '/teacher/view-students',
+      color: 'from-purple-500 to-purple-600'
+    }
+  ];
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-
-        {/* Teacher Profile Card */}
-        {teacher && (
-          <Card className="p-6 mb-6">
-            <div className="flex items-start gap-6">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={teacher.photo_url || ''} />
-                <AvatarFallback className="text-2xl">
-                  {teacher.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">{teacher.name}</h2>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Email:</span>
-                    <span className="ml-2 font-medium">{teacher.email || 'N/A'}</span>
+    <DashboardLayout
+      title="Teacher Dashboard"
+      subtitle="Manage classes and student results"
+    >
+      {/* Teacher Profile Card */}
+      {teacher && (
+        <Card className="p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+            <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-primary/20">
+              <AvatarImage src={teacher.photo_url || ''} />
+              <AvatarFallback className="text-xl sm:text-2xl bg-primary/10">
+                {teacher.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 w-full">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">{teacher.name}</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="ml-2 font-medium break-all">{teacher.email || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Phone:</span>
+                  <span className="ml-2 font-medium">{teacher.phone || 'N/A'}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-muted-foreground">Subjects:</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {teacher.subjects.map((subject) => (
+                      <span
+                        key={subject}
+                        className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium"
+                      >
+                        {subject}
+                      </span>
+                    ))}
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Phone:</span>
-                    <span className="ml-2 font-medium">{teacher.phone || 'N/A'}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">Subjects:</span>
-                    <span className="ml-2 font-medium">{teacher.subjects.join(', ')}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">Classes Assigned:</span>
-                    <span className="ml-2 font-medium">{teacher.classes_assigned.join(', ')}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-muted-foreground">Classes:</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {teacher.classes_assigned.map((cls) => (
+                      <span
+                        key={cls}
+                        className="px-2 py-1 bg-secondary text-secondary-foreground rounded-md text-xs font-medium"
+                      >
+                        {cls}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
-          </Card>
-        )}
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/teacher/students')}>
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500/10 rounded-lg">
-                <Users className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold">My Students</h3>
-                <p className="text-sm text-muted-foreground">View students</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-500/10 rounded-lg">
-                <BookOpen className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Subjects</h3>
-                <p className="text-sm text-muted-foreground">{teacher?.subjects.length || 0} subjects</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/teacher/result-entry')}>
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-500/10 rounded-lg">
-                <FileText className="w-6 h-6 text-purple-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Results Entry</h3>
-                <p className="text-sm text-muted-foreground">Add marks</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/teacher/results')}>
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-500/10 rounded-lg">
-                <Bell className="w-6 h-6 text-orange-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold">View Results</h3>
-                <p className="text-sm text-muted-foreground">Manage results</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Classes Overview */}
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4">My Classes</h2>
-          {teacher && teacher.classes_assigned.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teacher.classes_assigned.map((className, index) => (
-                <Card key={index} className="p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">{className}</h3>
-                      <p className="text-sm text-muted-foreground">View students & results</p>
-                    </div>
-                    <Users className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No classes assigned yet</p>
-            </div>
-          )}
+          </div>
         </Card>
+      )}
+
+      {/* Statistics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <StatCard
+          title="Total Students"
+          value={stats.totalStudents}
+          icon={Users}
+          description="In your assigned classes"
+          className="hover-scale"
+        />
+        <StatCard
+          title="Results Entered"
+          value={stats.resultsEntered}
+          icon={FileText}
+          description="Total marks submitted"
+          className="hover-scale"
+        />
+        <StatCard
+          title="Subjects Teaching"
+          value={teacher?.subjects.length || 0}
+          icon={BookOpen}
+          description="Active subjects"
+          className="hover-scale"
+        />
       </div>
-    </div>
+
+      {/* Quick Actions */}
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {quickActions.map((action) => (
+            <Card
+              key={action.path}
+              className="p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group animate-fade-in"
+              onClick={() => navigate(action.path)}
+            >
+              <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
+                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
+                  <action.icon className="w-7 h-7 sm:w-8 sm:h-8" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-primary transition-colors">
+                    {action.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    {action.description}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </DashboardLayout>
   );
 };
 
