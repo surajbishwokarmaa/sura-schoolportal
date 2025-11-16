@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, BookOpen, FileText, Bell, User } from 'lucide-react';
+import { FileText, TrendingUp, Download, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { StatCard } from '@/components/ui/stat-card';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { calculateOverallGPA } from '@/lib/gradeCalculator';
 
 interface StudentData {
   id: string;
@@ -31,7 +34,7 @@ interface Result {
 }
 
 const StudentDashboard = () => {
-  const { user, userRole, signOut } = useAuth();
+  const { user, userRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [student, setStudent] = useState<StudentData | null>(null);
@@ -93,156 +96,153 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/select-role');
-  };
+  const overallGPA = results.length > 0 ? calculateOverallGPA(results) : 0;
+  const totalResults = results.length;
+  const publishedResults = results.filter(r => r.term).length;
+
+  const quickActions = [
+    {
+      title: 'View Marksheet',
+      description: 'See your detailed results',
+      icon: FileText,
+      path: '/student/view-marksheet',
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'Download Marksheet',
+      description: 'Download PDF marksheet',
+      icon: Download,
+      path: '/student/view-marksheet',
+      color: 'from-green-500 to-emerald-600'
+    }
+  ];
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Student Dashboard</h1>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-
-        {/* Student Profile Card */}
-        {student && (
-          <Card className="p-6 mb-6">
-            <div className="flex items-start gap-6">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={student.photo_url || ''} />
-                <AvatarFallback className="text-2xl">
-                  {student.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">{student.name}</h2>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Roll No:</span>
-                    <span className="ml-2 font-medium">{student.roll_no}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Class:</span>
-                    <span className="ml-2 font-medium">{student.class} - {student.section}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Parent:</span>
-                    <span className="ml-2 font-medium">{student.parent_name || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Contact:</span>
-                    <span className="ml-2 font-medium">{student.parent_phone}</span>
-                  </div>
+    <DashboardLayout
+      title="Student Dashboard"
+      subtitle="View your academic performance"
+    >
+      {/* Student Profile Card */}
+      {student && (
+        <Card className="p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+            <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-primary/20">
+              <AvatarImage src={student.photo_url || ''} />
+              <AvatarFallback className="text-xl sm:text-2xl bg-primary/10">
+                {student.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 w-full">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">{student.name}</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Roll Number:</span>
+                  <span className="ml-2 font-medium">{student.roll_no}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Class:</span>
+                  <span className="ml-2 font-medium">{student.class} - {student.section}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Parent:</span>
+                  <span className="ml-2 font-medium">{student.parent_name || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Contact:</span>
+                  <span className="ml-2 font-medium">{student.parent_phone}</span>
                 </div>
               </div>
             </div>
-          </Card>
-        )}
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card 
-            className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => navigate('/student/marksheet')}
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500/10 rounded-lg">
-                <FileText className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold">View Marksheet</h3>
-                <p className="text-sm text-muted-foreground">Download report card</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-500/10 rounded-lg">
-                <BookOpen className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold">My Results</h3>
-                <p className="text-sm text-muted-foreground">{results.length} records</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-500/10 rounded-lg">
-                <Bell className="w-6 h-6 text-orange-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Notices</h3>
-                <p className="text-sm text-muted-foreground">Latest updates</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Results Table */}
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4">Academic Results</h2>
-          {results.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">Subject</th>
-                    <th className="text-left py-3 px-4">Term</th>
-                    <th className="text-center py-3 px-4">Theory</th>
-                    <th className="text-center py-3 px-4">Practical</th>
-                    <th className="text-center py-3 px-4">Total</th>
-                    <th className="text-center py-3 px-4">Grade</th>
-                    <th className="text-center py-3 px-4">GPA</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((result) => (
-                    <tr key={result.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4">{result.subject}</td>
-                      <td className="py-3 px-4 capitalize">{result.term}</td>
-                      <td className="text-center py-3 px-4">{result.theory_marks}</td>
-                      <td className="text-center py-3 px-4">{result.practical_marks}</td>
-                      <td className="text-center py-3 px-4 font-medium">{result.total_marks}</td>
-                      <td className="text-center py-3 px-4">
-                        <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                          {result.grade}
-                        </span>
-                      </td>
-                      <td className="text-center py-3 px-4 font-medium">{result.gpa}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No results available yet</p>
-            </div>
-          )}
+          </div>
         </Card>
+      )}
+
+      {/* Statistics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <StatCard
+          title="Overall GPA"
+          value={overallGPA.toFixed(2)}
+          icon={Award}
+          description="Your current GPA"
+          className="hover-scale"
+        />
+        <StatCard
+          title="Total Results"
+          value={totalResults}
+          icon={FileText}
+          description="Results published"
+          className="hover-scale"
+        />
+        <StatCard
+          title="Published Results"
+          value={publishedResults}
+          icon={TrendingUp}
+          description="Available to view"
+          className="hover-scale"
+        />
       </div>
-    </div>
+
+      {/* Quick Actions */}
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          {quickActions.map((action) => (
+            <Card
+              key={action.path}
+              className="p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group animate-fade-in"
+              onClick={() => navigate(action.path)}
+            >
+              <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
+                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
+                  <action.icon className="w-7 h-7 sm:w-8 sm:h-8" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-primary transition-colors">
+                    {action.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    {action.description}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Results */}
+      {results.length > 0 && (
+        <Card className="p-4 sm:p-6">
+          <h3 className="font-semibold text-lg mb-4">Recent Results</h3>
+          <div className="space-y-3">
+            {results.slice(0, 5).map((result) => (
+              <div
+                key={result.id}
+                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+              >
+                <div className="flex-1">
+                  <p className="font-medium">{result.subject}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {result.term.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-lg">{result.grade}</p>
+                  <p className="text-sm text-muted-foreground">GPA: {result.gpa}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </DashboardLayout>
   );
 };
 

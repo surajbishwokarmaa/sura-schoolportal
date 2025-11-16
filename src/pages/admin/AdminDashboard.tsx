@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, Users, BookOpen, FileText, Bell, LogOut, Shield, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { StatCard } from '@/components/ui/stat-card';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 const AdminDashboard = () => {
-  const { user, userRole, signOut, loading } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     students: 0,
@@ -15,6 +17,7 @@ const AdminDashboard = () => {
     classes: 0,
     results: 0
   });
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && (!user || userRole !== 'admin')) {
@@ -25,11 +28,12 @@ const AdminDashboard = () => {
   }, [user, userRole, loading, navigate]);
 
   const fetchStats = async () => {
+    setDataLoading(true);
     const [studentsRes, teachersRes, classesRes, resultsRes] = await Promise.all([
       supabase.from('students').select('*', { count: 'exact', head: true }),
       supabase.from('teachers').select('*', { count: 'exact', head: true }),
       supabase.from('classes').select('*', { count: 'exact', head: true }),
-      supabase.from('results').select('*', { count: 'exact', head: true }).eq('status', 'published')
+      supabase.from('results').select('*', { count: 'exact', head: true })
     ]);
 
     setStats({
@@ -38,119 +42,152 @@ const AdminDashboard = () => {
       classes: classesRes.count || 0,
       results: resultsRes.count || 0
     });
+    setDataLoading(false);
   };
 
-  const statsDisplay = [
-    { title: 'Total Students', value: stats.students.toString(), icon: GraduationCap, color: 'from-blue-500 to-blue-600' },
-    { title: 'Total Teachers', value: stats.teachers.toString(), icon: Users, color: 'from-green-500 to-emerald-600' },
-    { title: 'Classes', value: stats.classes.toString(), icon: BookOpen, color: 'from-purple-500 to-purple-600' },
-    { title: 'Published Results', value: stats.results.toString(), icon: FileText, color: 'from-orange-500 to-orange-600' }
-  ];
-
   const quickActions = [
-    { title: 'Manage Classes', description: 'Add and configure classes', icon: BookOpen, path: '/admin/classes' },
-    { title: 'Manage Teachers', description: 'Manage teacher accounts', icon: Users, path: '/admin/teachers' },
-    { title: 'Manage Students', description: 'Add, edit, or remove students', icon: GraduationCap, path: '/admin/students' },
-    { title: '📤 Bulk Data Upload', description: 'Upload students/teachers from Excel', icon: Upload, path: '/admin/bulk-upload' },
-    { title: 'Notices', description: 'Create and manage notices', icon: Bell, path: '/admin/notices' }
+    {
+      title: 'Manage Students',
+      description: 'Add, edit, or remove students',
+      icon: GraduationCap,
+      path: '/admin/students',
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'Manage Teachers',
+      description: 'Teacher accounts & assignments',
+      icon: Users,
+      path: '/admin/teachers',
+      color: 'from-green-500 to-emerald-600'
+    },
+    {
+      title: 'Manage Classes',
+      description: 'Classes, sections & subjects',
+      icon: BookOpen,
+      path: '/admin/classes',
+      color: 'from-purple-500 to-purple-600'
+    },
+    {
+      title: 'Bulk Upload',
+      description: 'Upload students/teachers from Excel',
+      icon: Upload,
+      path: '/admin/bulk-upload',
+      color: 'from-orange-500 to-orange-600'
+    },
+    {
+      title: 'Notices',
+      description: 'Create and manage announcements',
+      icon: Bell,
+      path: '/admin/notices',
+      color: 'from-pink-500 to-pink-600'
+    },
+    {
+      title: 'System Guide',
+      description: 'Help and documentation',
+      icon: Settings,
+      path: '/admin/system-guide',
+      color: 'from-indigo-500 to-indigo-600'
+    }
   ];
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground shadow-lg">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-                <Shield className="w-6 h-6" />
+    <DashboardLayout
+      title="Admin Dashboard"
+      subtitle="Complete system control and management"
+    >
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <StatCard
+          title="Total Students"
+          value={dataLoading ? "..." : stats.students}
+          icon={GraduationCap}
+          description="Active enrolled students"
+          className="hover-scale"
+        />
+        <StatCard
+          title="Total Teachers"
+          value={dataLoading ? "..." : stats.teachers}
+          icon={Users}
+          description="Teaching staff members"
+          className="hover-scale"
+        />
+        <StatCard
+          title="Classes"
+          value={dataLoading ? "..." : stats.classes}
+          icon={BookOpen}
+          description="Active classes configured"
+          className="hover-scale"
+        />
+        <StatCard
+          title="Total Results"
+          value={dataLoading ? "..." : stats.results}
+          icon={FileText}
+          description="Results entered in system"
+          className="hover-scale"
+        />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {quickActions.map((action) => (
+            <Card
+              key={action.path}
+              className="p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group animate-fade-in"
+              onClick={() => navigate(action.path)}
+            >
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform flex-shrink-0`}>
+                  <action.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-primary transition-colors truncate">
+                    {action.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+                    {action.description}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* System Info */}
+      <Card className="p-4 sm:p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-base sm:text-lg mb-2">System Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Academic Year:</span>
+                <span className="ml-2 font-medium">2081-2082</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold">Admin Dashboard</h1>
-                <p className="text-sm opacity-90">Sura School Portal</p>
+                <span className="text-muted-foreground">Current Term:</span>
+                <span className="ml-2 font-medium">First Term</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">System Status:</span>
+                <span className="ml-2 font-medium text-green-600">Active</span>
               </div>
             </div>
-            <Button variant="outline" onClick={signOut} className="bg-white/10 border-white/20 text-white hover:bg-white/20">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
           </div>
         </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {statsDisplay.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.title} className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
-                    <p className="text-3xl font-bold">{stat.value}</p>
-                  </div>
-                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
-                    <Icon className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Card
-                  key={action.title}
-                  className="p-6 cursor-pointer hover:shadow-lg transition-all duration-300 group border-2 hover:border-primary"
-                  onClick={() => navigate(action.path)}
-                >
-                  <Icon className="w-10 h-10 mb-4 text-primary group-hover:scale-110 transition-transform" />
-                  <h3 className="text-lg font-semibold mb-2">{action.title}</h3>
-                  <p className="text-sm text-muted-foreground">{action.description}</p>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Welcome Message */}
-        <Card className="p-8 gradient-hero text-white">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <GraduationCap className="w-8 h-8" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Welcome to Admin Dashboard</h2>
-              <p className="text-white/90 mb-4">
-                Manage all aspects of Buddha Deep English Boarding School's result management system. 
-                Add students and teachers, manage results, and publish report cards.
-              </p>
-              <Button variant="secondary" onClick={() => navigate('/admin/system-guide')}>
-                View System Guide
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
+      </Card>
+    </DashboardLayout>
   );
 };
 
