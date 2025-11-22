@@ -36,7 +36,6 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/select-role" element={<SelectRole />} />
             <Route path="/auth/student" element={<StudentAuth />} />
             <Route path="/auth/teacher" element={<TeacherAuth />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
