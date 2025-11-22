@@ -31,7 +31,7 @@ const ViewResults = () => {
   const [teacherData, setTeacherData] = useState<any>(null);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term'>('first_term');
+  const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -133,6 +133,7 @@ const ViewResults = () => {
                   <SelectItem value="first_term">First Term</SelectItem>
                   <SelectItem value="second_term">Second Term</SelectItem>
                   <SelectItem value="third_term">Third Term</SelectItem>
+                  <SelectItem value="final_term">Final Exam</SelectItem>
                 </SelectContent>
               </Select>
             </div>
