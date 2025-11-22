@@ -31,7 +31,7 @@ const ResultEntry = () => {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term'>('first_term');
+  const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
   const [students, setStudents] = useState<Student[]>([]);
   const [results, setResults] = useState<ResultEntry[]>([]);
   const [teacherData, setTeacherData] = useState<any>(null);
@@ -229,16 +229,16 @@ const ResultEntry = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      <div className="container mx-auto px-4 py-8">
-        <Button variant="ghost" onClick={() => navigate('/teacher')} className="mb-6">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
+        <Button variant="ghost" onClick={() => navigate('/teacher')} className="mb-4 sm:mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Dashboard
         </Button>
 
-        <h1 className="text-3xl font-bold mb-8">Result Entry</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Result Entry</h1>
 
-        <Card className="p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="p-4 sm:p-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div>
               <Label>Class</Label>
               <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -297,6 +297,7 @@ const ResultEntry = () => {
                   <SelectItem value="first_term">First Term</SelectItem>
                   <SelectItem value="second_term">Second Term</SelectItem>
                   <SelectItem value="third_term">Third Term</SelectItem>
+                  <SelectItem value="final_term">Final Exam</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -316,17 +317,17 @@ const ResultEntry = () => {
 
           {!loading && students.length > 0 && (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-sm sm:text-base">
                   <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4">Roll No</th>
-                      <th className="text-left py-3 px-4">Student Name</th>
-                      <th className="text-center py-3 px-4">Theory Marks</th>
-                      <th className="text-center py-3 px-4">Practical Marks</th>
-                      <th className="text-center py-3 px-4">Total</th>
-                      <th className="text-center py-3 px-4">Grade</th>
-                      <th className="text-center py-3 px-4">GPA</th>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Roll</th>
+                      <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Name</th>
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Theory</th>
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Practical</th>
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Total</th>
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Grade</th>
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">GPA</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -337,35 +338,35 @@ const ResultEntry = () => {
 
                       return (
                         <tr key={student.id} className="border-b hover:bg-muted/50">
-                          <td className="py-3 px-4">{student.roll_no}</td>
-                          <td className="py-3 px-4">{student.name}</td>
-                          <td className="py-3 px-4">
+                          <td className="py-2 sm:py-3 px-2 sm:px-4 font-medium">{student.roll_no}</td>
+                          <td className="py-2 sm:py-3 px-2 sm:px-4">{student.name}</td>
+                          <td className="py-2 sm:py-3 px-2 sm:px-4">
                             <Input
                               type="number"
                               min="0"
                               max="75"
                               value={result?.theory_marks || 0}
                               onChange={(e) => updateResult(student.id, 'theory_marks', e.target.value)}
-                              className="w-24 mx-auto"
+                              className="w-16 sm:w-24 mx-auto text-center"
                             />
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-2 sm:py-3 px-2 sm:px-4">
                             <Input
                               type="number"
                               min="0"
                               max="25"
                               value={result?.practical_marks || 0}
                               onChange={(e) => updateResult(student.id, 'practical_marks', e.target.value)}
-                              className="w-24 mx-auto"
+                              className="w-16 sm:w-24 mx-auto text-center"
                             />
                           </td>
-                          <td className="text-center py-3 px-4 font-medium">{total}</td>
-                          <td className="text-center py-3 px-4">
-                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">
+                          <td className="text-center py-2 sm:py-3 px-2 sm:px-4 font-semibold">{total}</td>
+                          <td className="text-center py-2 sm:py-3 px-2 sm:px-4">
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs sm:text-sm font-medium">
                               {grade}
                             </span>
                           </td>
-                          <td className="text-center py-3 px-4 font-medium">{gpa}</td>
+                          <td className="text-center py-2 sm:py-3 px-2 sm:px-4 font-medium">{gpa.toFixed(1)}</td>
                         </tr>
                       );
                     })}
