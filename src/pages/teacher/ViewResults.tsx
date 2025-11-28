@@ -44,33 +44,48 @@ const ViewResults = () => {
   }, [user, userRole]);
 
   const fetchTeacherData = async () => {
-    const { data } = await supabase
-      .from('teachers')
-      .select('*')
-      .eq('user_id', user?.id)
-      .single();
-    
-    if (data) setTeacherData(data);
+    try {
+      const { data, error } = await supabase
+        .from('teachers')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setTeacherData(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching teacher data:', error);
+    }
   };
 
   const fetchResults = async () => {
     if (!selectedClass || !selectedSubject || !teacherData) return;
 
     setLoading(true);
-    const { data } = await supabase
-      .from('results')
-      .select(`
-        *,
-        students (name, roll_no)
-      `)
-      .eq('teacher_id', teacherData.id)
-      .eq('class', selectedClass)
-      .eq('subject', selectedSubject)
-      .eq('term', selectedTerm)
-      .order('students(roll_no)');
+    try {
+      const { data, error } = await supabase
+        .from('results')
+        .select(`
+          *,
+          students (name, roll_no)
+        `)
+        .eq('teacher_id', teacherData.id)
+        .eq('class', selectedClass)
+        .eq('subject', selectedSubject)
+        .eq('term', selectedTerm)
+        .order('students(roll_no)');
 
-    if (data) setResults(data as any);
-    setLoading(false);
+      if (error) throw error;
+
+      if (data) setResults(data as any);
+    } catch (error: any) {
+      console.error('Error fetching results:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

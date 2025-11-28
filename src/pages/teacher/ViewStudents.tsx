@@ -39,38 +39,59 @@ const ViewStudents = () => {
   }, [user, userRole]);
 
   const fetchTeacherData = async () => {
-    const { data } = await supabase
-      .from('teachers')
-      .select('*')
-      .eq('user_id', user?.id)
-      .single();
-    
-    if (data) setTeacherData(data);
+    try {
+      const { data, error } = await supabase
+        .from('teachers')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setTeacherData(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching teacher data:', error);
+    }
   };
 
   const fetchClasses = async () => {
-    const { data } = await supabase
-      .from('classes')
-      .select('*')
-      .order('name');
-    
-    if (data) setClasses(data);
+    try {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      
+      if (data) setClasses(data);
+    } catch (error: any) {
+      console.error('Error fetching classes:', error);
+    }
   };
 
   const fetchStudents = async () => {
     if (!selectedClass || !selectedSection) return;
 
     setLoading(true);
-    const { data } = await supabase
-      .from('students')
-      .select('*')
-      .eq('class', selectedClass)
-      .eq('section', selectedSection)
-      .eq('is_active', true)
-      .order('roll_no');
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('class', selectedClass)
+        .eq('section', selectedSection)
+        .eq('is_active', true)
+        .order('roll_no');
 
-    if (data) setStudents(data);
-    setLoading(false);
+      if (error) throw error;
+
+      if (data) setStudents(data);
+    } catch (error: any) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

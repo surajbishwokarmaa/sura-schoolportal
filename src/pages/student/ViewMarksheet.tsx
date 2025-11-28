@@ -53,30 +53,59 @@ const ViewMarksheet = () => {
   }, [studentData, selectedTerm]);
 
   const fetchStudentData = async () => {
-    const { data } = await supabase
-      .from('students')
-      .select('*')
-      .eq('user_id', user?.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
 
-    if (data) {
-      setStudentData(data);
+      if (error) throw error;
+
+      if (data) {
+        setStudentData(data);
+      } else {
+        toast({
+          title: 'No Student Record',
+          description: 'No student record found for your account',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching student data:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to fetch student data',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchResults = async () => {
     if (!studentData) return;
 
-    const { data } = await supabase
-      .from('results')
-      .select('*')
-      .eq('student_id', studentData.id)
-      .eq('term', selectedTerm)
-      .order('subject');
+    try {
+      const { data, error } = await supabase
+        .from('results')
+        .select('*')
+        .eq('student_id', studentData.id)
+        .eq('term', selectedTerm)
+        .order('subject');
 
-    if (data) {
-      setResults(data as Result[]);
+      if (error) throw error;
+
+      if (data) {
+        setResults(data as Result[]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching results:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to fetch results',
+        variant: 'destructive'
+      });
     }
   };
 
