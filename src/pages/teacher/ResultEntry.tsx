@@ -192,24 +192,56 @@ const ResultEntry = () => {
     setLoading(true);
 
     try {
-      const resultsToInsert = results.map(r => {
-        const totalMarks = r.theory_marks + r.practical_marks;
-        const { grade, gpa } = calculateGradeAndGPA(totalMarks);
-        
-        return {
-          student_id: r.student_id,
-          teacher_id: teacherData.id,
-          class: selectedClass,
-          subject: selectedSubject,
-          term: selectedTerm,
-          theory_marks: r.theory_marks,
-          practical_marks: r.practical_marks,
-          total_marks: totalMarks,
-          grade,
-          gpa,
-          status: 'approved' as const
-        };
-      });
+      const resultsToInsert = await Promise.all(
+        results.map(async r => {
+          try {
+            // Call AI calculation edge function
+            const { data: calcData, error: calcError } = await supabase.functions.invoke('calculate-result', {
+              body: {
+                theoryMarks: r.theory_marks,
+                practicalMarks: r.practical_marks,
+                fullMarks: 100
+              }
+            });
+
+            if (calcError) throw calcError;
+
+            return {
+              student_id: r.student_id,
+              teacher_id: teacherData.id,
+              class: selectedClass,
+              subject: selectedSubject,
+              term: selectedTerm,
+              theory_marks: r.theory_marks,
+              practical_marks: r.practical_marks,
+              total_marks: calcData.totalMarks,
+              grade: calcData.grade,
+              gpa: calcData.gpa,
+              remarks: calcData.remarks,
+              status: 'approved' as const
+            };
+          } catch (aiError) {
+            console.error('AI calculation failed for student, using fallback:', aiError);
+            // Fallback to local calculation
+            const totalMarks = r.theory_marks + r.practical_marks;
+            const { grade, gpa } = calculateGradeAndGPA(totalMarks);
+            
+            return {
+              student_id: r.student_id,
+              teacher_id: teacherData.id,
+              class: selectedClass,
+              subject: selectedSubject,
+              term: selectedTerm,
+              theory_marks: r.theory_marks,
+              practical_marks: r.practical_marks,
+              total_marks: totalMarks,
+              grade,
+              gpa,
+              status: 'approved' as const
+            };
+          }
+        })
+      );
 
       const { error } = await supabase
         .from('results')
@@ -222,7 +254,7 @@ const ResultEntry = () => {
 
       toast({
         title: 'Success',
-        description: 'Results saved successfully',
+        description: 'Results saved with AI-powered feedback',
       });
 
       navigate('/teacher');
