@@ -31,6 +31,12 @@ interface MarksheetData {
 }
 
 export async function generateMarksheetPDF(data: MarksheetData): Promise<void> {
+  // Validate data
+  if (!data.student || !data.results || data.results.length === 0) {
+    alert("No results available to generate PDF");
+    return;
+  }
+
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
   if (!printWindow) {

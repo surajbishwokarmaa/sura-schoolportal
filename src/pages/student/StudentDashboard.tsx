@@ -57,10 +57,19 @@ const StudentDashboard = () => {
         .from('students')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setStudent(data);
+      
+      if (data) {
+        setStudent(data);
+      } else {
+        toast({
+          title: 'No Student Record',
+          description: 'No student record found for your account',
+          variant: 'destructive'
+        });
+      }
     } catch (error) {
       console.error('Error fetching student data:', error);
       toast({
@@ -79,7 +88,7 @@ const StudentDashboard = () => {
         .from('students')
         .select('id')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (!studentData) return;
 
