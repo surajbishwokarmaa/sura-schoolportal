@@ -271,6 +271,12 @@ const ResultEntry = () => {
   };
 
   const selectedClassData = classes.find(c => c.name === selectedClass);
+  
+  // Get sections from class data, with fallback to common sections if empty
+  const availableSections = selectedClassData?.sections && selectedClassData.sections.length > 0 
+    ? selectedClassData.sections 
+    : ['A', 'B', 'C', 'D']; // Default sections if none configured
+  
   const availableSubjects = teacherData?.subjects || [];
 
   return (
@@ -308,7 +314,7 @@ const ResultEntry = () => {
                   <SelectValue placeholder="Select Section" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedClassData?.sections.map((section: string) => (
+                  {availableSections.map((section: string) => (
                     <SelectItem key={section} value={section}>
                       {section}
                     </SelectItem>
