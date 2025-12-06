@@ -22,11 +22,11 @@ interface StudentData {
 
 interface Result {
   subject: string;
-  theory_marks: number;
-  practical_marks: number;
-  total_marks: number;
-  grade: string;
-  gpa: number;
+  theory_marks: number | null;
+  practical_marks: number | null;
+  total_marks: number | null;
+  grade: string | null;
+  gpa: number | null;
 }
 
 const ViewMarksheet = () => {
@@ -112,10 +112,11 @@ const ViewMarksheet = () => {
   const calculateOverallMetrics = () => {
     if (results.length === 0) return { gpa: 0, totalMarks: 0, percentage: 0 };
     
-    const totalMarks = results.reduce((sum, r) => sum + r.total_marks, 0);
+    const totalMarks = results.reduce((sum, r) => sum + (r.total_marks || 0), 0);
     const maxMarks = results.length * 100;
     const percentage = (totalMarks / maxMarks) * 100;
-    const gpa = calculateOverallGPA(results);
+    const validResults = results.filter(r => r.gpa !== null).map(r => ({ gpa: r.gpa as number }));
+    const gpa = validResults.length > 0 ? calculateOverallGPA(validResults) : 0;
 
     return { gpa, totalMarks, percentage };
   };
@@ -152,11 +153,11 @@ const ViewMarksheet = () => {
       },
       results: results.map(r => ({
         subject: r.subject,
-        theoryMarks: r.theory_marks,
-        practicalMarks: r.practical_marks,
-        totalMarks: r.total_marks,
-        grade: r.grade,
-        gpa: r.gpa
+        theoryMarks: r.theory_marks || 0,
+        practicalMarks: r.practical_marks || 0,
+        totalMarks: r.total_marks || 0,
+        grade: r.grade || 'N/A',
+        gpa: r.gpa || 0
       })),
       term: getTermDisplay(),
       academicYear: '2081-2082',
@@ -275,13 +276,13 @@ const ViewMarksheet = () => {
                       <tr key={index} className="hover:bg-muted/50">
                         <td className="border border-border p-2 sm:p-3">{index + 1}</td>
                         <td className="border border-border p-2 sm:p-3">{result.subject}</td>
-                        <td className="border border-border p-2 sm:p-3 text-center">{result.theory_marks}</td>
-                        <td className="border border-border p-2 sm:p-3 text-center">{result.practical_marks}</td>
-                        <td className="border border-border p-2 sm:p-3 text-center font-semibold">{result.total_marks}</td>
-                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${getGradeColor(result.grade)}`}>
-                          {result.grade}
+                        <td className="border border-border p-2 sm:p-3 text-center">{result.theory_marks ?? '-'}</td>
+                        <td className="border border-border p-2 sm:p-3 text-center">{result.practical_marks ?? '-'}</td>
+                        <td className="border border-border p-2 sm:p-3 text-center font-semibold">{result.total_marks ?? '-'}</td>
+                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${getGradeColor(result.grade || '')}`}>
+                          {result.grade || '-'}
                         </td>
-                        <td className="border border-border p-2 sm:p-3 text-center">{result.gpa.toFixed(1)}</td>
+                        <td className="border border-border p-2 sm:p-3 text-center">{result.gpa?.toFixed(1) ?? '-'}</td>
                       </tr>
                     ))}
                   </tbody>
