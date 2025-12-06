@@ -92,14 +92,14 @@ const TeacherDashboard = () => {
       title: 'View Results',
       description: 'See entered results',
       icon: Eye,
-      path: '/teacher/view-results',
+      path: '/teacher/results',
       color: 'from-green-500 to-emerald-600'
     },
     {
       title: 'View Students',
       description: 'Student list & details',
       icon: Users,
-      path: '/teacher/view-students',
+      path: '/teacher/students',
       color: 'from-purple-500 to-purple-600'
     }
   ];

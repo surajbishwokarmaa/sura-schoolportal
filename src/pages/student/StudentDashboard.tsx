@@ -114,14 +114,14 @@ const StudentDashboard = () => {
       title: 'View Marksheet',
       description: 'See your detailed results',
       icon: FileText,
-      path: '/student/view-marksheet',
+      path: '/student/marksheet',
       color: 'from-blue-500 to-blue-600'
     },
     {
       title: 'Download Marksheet',
       description: 'Download PDF marksheet',
       icon: Download,
-      path: '/student/view-marksheet',
+      path: '/student/marksheet',
       color: 'from-green-500 to-emerald-600'
     }
   ];
