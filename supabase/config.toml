@@ -1,10 +1,10 @@
 project_id = "ozrpoufjuxnrpgzlzzuy"
 
 [functions.process-bulk-upload]
-verify_jwt = false
+verify_jwt = true
 
 [functions.calculate-result]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-user-account]
-verify_jwt = false
+verify_jwt = true

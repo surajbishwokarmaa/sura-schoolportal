@@ -7,7 +7,6 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
 import TeacherAuth from "./pages/auth/TeacherAuth";
 import AdminAuth from "./pages/auth/AdminAuth";
-import AdminSetup from "./pages/auth/AdminSetup";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ClassesManagement from "./pages/admin/ClassesManagement";
 import TeachersManagement from "./pages/admin/TeachersManagement";
@@ -36,7 +35,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth/teacher" element={<TeacherAuth />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
-            <Route path="/auth/admin-setup" element={<AdminSetup />} />
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/student/marksheet" element={<ViewMarksheet />} />
               <Route path="/teacher" element={<TeacherDashboard />} />
