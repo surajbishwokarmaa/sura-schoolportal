@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Edit2, Trash2, ArrowLeft, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, Users, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -16,13 +17,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface Teacher {
   id: string;
@@ -50,7 +44,6 @@ const TeachersManagement = () => {
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
     subjects: '',
     classesAssigned: '',
@@ -159,6 +152,12 @@ const TeachersManagement = () => {
     }
   };
 
+  // Generate a unique email from phone number for auth purposes
+  const generateEmailFromPhone = (phone: string): string => {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    return `teacher${cleanPhone}@school.edu.np`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -171,7 +170,6 @@ const TeachersManagement = () => {
         .from('teachers')
         .update({
           name: formData.name,
-          email: formData.email,
           phone: formData.phone,
           subjects: subjectsArray,
           classes_assigned: classesArray
@@ -194,10 +192,10 @@ const TeachersManagement = () => {
       }
     } else {
       // Validate required fields
-      if (!formData.email || formData.email.trim() === '') {
+      if (!formData.phone || formData.phone.trim() === '') {
         toast({
           title: 'Error',
-          description: 'Email is required for new teachers',
+          description: 'Phone number is required for new teachers',
           variant: 'destructive'
         });
         setIsLoading(false);
@@ -225,11 +223,12 @@ const TeachersManagement = () => {
       }
 
       const password = formData.password;
+      const generatedEmail = generateEmailFromPhone(formData.phone);
 
       // Create auth user via edge function
       const { data: authData, error: authError } = await supabase.functions.invoke('create-user-account', {
         body: {
-          email: formData.email,
+          email: generatedEmail,
           password: password,
           role: 'teacher',
           fullName: formData.name,
@@ -294,7 +293,7 @@ const TeachersManagement = () => {
         .insert({
           user_id: authUser.id,
           name: formData.name,
-          email: formData.email,
+          email: generatedEmail,
           phone: formData.phone,
           subjects: subjectsArray,
           classes_assigned: classesArray,
@@ -310,7 +309,7 @@ const TeachersManagement = () => {
       } else {
         toast({
           title: 'Success',
-          description: `Teacher created successfully! Login: ${formData.email}, Password: ${password}`,
+          description: `Teacher created successfully! Login: Phone: ${formData.phone}, Password: ${password}`,
           duration: 10000
         });
         fetchTeachers();
@@ -325,7 +324,6 @@ const TeachersManagement = () => {
     setEditingTeacher(teacher);
     setFormData({
       name: teacher.name,
-      email: teacher.email || '',
       phone: teacher.phone || '',
       subjects: teacher.subjects.join(', '),
       classesAssigned: teacher.classes_assigned.join(', '),
@@ -363,7 +361,6 @@ const TeachersManagement = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      email: '',
       phone: '',
       subjects: '',
       classesAssigned: '',
@@ -389,14 +386,14 @@ const TeachersManagement = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/admin')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Teachers Management</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">Teachers Management</h1>
               <p className="text-muted-foreground">Manage teacher accounts and assignments</p>
             </div>
           </div>
@@ -415,9 +412,9 @@ const TeachersManagement = () => {
                 <DialogTitle>{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name">Full Name *</Label>
                     <Input
                       id="name"
                       value={formData.name}
@@ -426,30 +423,28 @@ const TeachersManagement = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      required={!editingTeacher}
-                      disabled={!!editingTeacher}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    />
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        className="pl-9"
+                        placeholder="e.g., 9841234567"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Teachers will use this phone number to login
+                    </p>
                   </div>
                   {!editingTeacher && (
-                    <div>
-                      <Label htmlFor="password">Password</Label>
-                      <Input
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="password">Password *</Label>
+                      <PasswordInput
                         id="password"
-                        type="password"
                         value={formData.password}
                         onChange={(e) => setFormData({...formData, password: e.target.value})}
                         required
@@ -459,7 +454,7 @@ const TeachersManagement = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="subjects">Subjects (comma-separated)</Label>
+                  <Label htmlFor="subjects">Subjects (comma-separated) *</Label>
                   <Input
                     id="subjects"
                     value={formData.subjects}
@@ -469,7 +464,7 @@ const TeachersManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="classesAssigned">Assigned Classes (comma-separated)</Label>
+                  <Label htmlFor="classesAssigned">Assigned Classes (comma-separated) *</Label>
                   <Input
                     id="classesAssigned"
                     value={formData.classesAssigned}
@@ -477,6 +472,11 @@ const TeachersManagement = () => {
                     placeholder="e.g., Class 1, Class 2"
                     required
                   />
+                  {classes.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Available classes: {classes.map(c => c.name).join(', ')}
+                    </p>
+                  )}
                 </div>
                 {!editingTeacher && (
                   <div>
@@ -498,22 +498,9 @@ const TeachersManagement = () => {
                     )}
                   </div>
                 )}
-                {editingTeacher && (
-                  <div>
-                    <Label>Current Photo</Label>
-                    <div className="mt-2">
-                      <img src={photoPreview} alt="Teacher" className="w-24 h-24 object-cover rounded" />
-                    </div>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={isLoading || isUploading}>
-                    {isLoading || isUploading ? 'Saving...' : editingTeacher ? 'Update' : 'Create'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={resetForm}>
-                    Cancel
-                  </Button>
-                </div>
+                <Button type="submit" disabled={isLoading || isUploading} className="w-full">
+                  {isLoading ? 'Creating...' : editingTeacher ? 'Update Teacher' : 'Create Teacher'}
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -522,36 +509,34 @@ const TeachersManagement = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teachers.map((teacher) => (
             <Card key={teacher.id} className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-primary" />
+              <div className="flex items-start gap-4">
+                {teacher.photo_url ? (
+                  <img
+                    src={teacher.photo_url}
+                    alt={teacher.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="w-8 h-8 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold">{teacher.name}</h3>
-                    <p className="text-sm text-muted-foreground">{teacher.email}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => handleEdit(teacher)}>
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(teacher.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-lg truncate">{teacher.name}</h3>
+                  {teacher.phone && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {teacher.phone}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="mt-4 space-y-2">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Subjects</p>
                   <div className="flex flex-wrap gap-1">
-                    {teacher.subjects.map((subject) => (
-                      <Badge key={subject} variant="secondary" className="text-xs">
+                    {teacher.subjects.map((subject, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
                         {subject}
                       </Badge>
                     ))}
@@ -560,30 +545,31 @@ const TeachersManagement = () => {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Classes</p>
                   <div className="flex flex-wrap gap-1">
-                    {teacher.classes_assigned.map((cls) => (
-                      <Badge key={cls} variant="outline" className="text-xs">
+                    {teacher.classes_assigned.map((cls, i) => (
+                      <Badge key={i} variant="outline" className="text-xs">
                         {cls}
                       </Badge>
                     ))}
                   </div>
                 </div>
               </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => handleEdit(teacher)}>
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(teacher.id)}>
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
 
         {teachers.length === 0 && (
-          <Card className="p-12 text-center">
-            <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-xl font-semibold mb-2">No Teachers Yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Start by adding your first teacher to the system
-            </p>
-            <Button onClick={() => setIsDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add First Teacher
-            </Button>
-          </Card>
+          <div className="text-center py-12">
+            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">No teachers found. Add your first teacher.</p>
+          </div>
         )}
       </div>
     </div>

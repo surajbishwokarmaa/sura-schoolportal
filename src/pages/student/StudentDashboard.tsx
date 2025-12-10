@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, TrendingUp, Download, Award } from 'lucide-react';
+import { FileText, TrendingUp, Download, Award, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
@@ -116,6 +116,13 @@ const StudentDashboard = () => {
       icon: FileText,
       path: '/student/marksheet',
       color: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'Staff Info',
+      description: 'View teacher directory',
+      icon: Users,
+      path: '/student/staff',
+      color: 'from-purple-500 to-purple-600'
     },
     {
       title: 'Download Marksheet',

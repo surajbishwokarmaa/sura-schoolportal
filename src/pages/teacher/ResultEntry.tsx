@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
+import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
 
 interface Student {
   id: string;
@@ -22,12 +23,18 @@ interface ResultEntry {
   practical_marks: number;
 }
 
+interface ClassData {
+  id: string;
+  name: string;
+  sections: string[] | null;
+}
+
 const ResultEntry = () => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -36,6 +43,11 @@ const ResultEntry = () => {
   const [results, setResults] = useState<ResultEntry[]>([]);
   const [teacherData, setTeacherData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  // Get sections for selected class from database
+  const availableSections = classes.find(c => c.name === selectedClass)?.sections || [];
+  const availableSubjects = teacherData?.subjects || [];
 
   useEffect(() => {
     if (!user || userRole !== 'teacher') {
@@ -45,6 +57,20 @@ const ResultEntry = () => {
     fetchTeacherData();
     fetchClasses();
   }, [user, userRole]);
+
+  // Reset section when class changes
+  useEffect(() => {
+    setSelectedSection('');
+    setStudents([]);
+    setResults([]);
+  }, [selectedClass]);
+
+  // Fetch students when all selections are made
+  useEffect(() => {
+    if (selectedClass && selectedSection && selectedSubject) {
+      fetchStudents();
+    }
+  }, [selectedClass, selectedSection, selectedSubject, selectedTerm]);
 
   const fetchTeacherData = async () => {
     try {
@@ -68,7 +94,7 @@ const ResultEntry = () => {
     try {
       const { data, error } = await supabase
         .from('classes')
-        .select('*')
+        .select('id, name, sections')
         .order('name');
       
       if (error) throw error;
@@ -151,12 +177,6 @@ const ResultEntry = () => {
     }
   };
 
-  useEffect(() => {
-    if (selectedClass && selectedSection && selectedSubject) {
-      fetchStudents();
-    }
-  }, [selectedClass, selectedSection, selectedSubject, selectedTerm]);
-
   const calculateGradeAndGPA = (totalMarks: number) => {
     if (totalMarks >= 90) return { grade: 'A+', gpa: 4.0 };
     if (totalMarks >= 80) return { grade: 'A', gpa: 3.6 };
@@ -165,7 +185,7 @@ const ResultEntry = () => {
     if (totalMarks >= 50) return { grade: 'C+', gpa: 2.4 };
     if (totalMarks >= 40) return { grade: 'C', gpa: 2.0 };
     if (totalMarks >= 35) return { grade: 'D', gpa: 1.6 };
-    return { grade: 'E', gpa: 0.8 };
+    return { grade: 'NG', gpa: 0.8 };
   };
 
   const updateResult = (studentId: string, field: 'theory_marks' | 'practical_marks', value: string) => {
@@ -254,7 +274,7 @@ const ResultEntry = () => {
 
       toast({
         title: 'Success',
-        description: 'Results saved with AI-powered feedback',
+        description: 'Results saved successfully',
       });
 
       navigate('/teacher');
@@ -270,14 +290,13 @@ const ResultEntry = () => {
     }
   };
 
-  const selectedClassData = classes.find(c => c.name === selectedClass);
-  
-  // Get sections from class data, with fallback to common sections if empty
-  const availableSections = selectedClassData?.sections && selectedClassData.sections.length > 0 
-    ? selectedClassData.sections 
-    : ['A', 'B', 'C', 'D']; // Default sections if none configured
-  
-  const availableSubjects = teacherData?.subjects || [];
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  // Filter classes that teacher is assigned to
+  const teacherClasses = teacherData?.classes_assigned || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
@@ -298,7 +317,7 @@ const ResultEntry = () => {
                   <SelectValue placeholder="Select Class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teacherData?.classes_assigned.map((className: string) => (
+                  {teacherClasses.map((className: string) => (
                     <SelectItem key={className} value={className}>
                       {className}
                     </SelectItem>
@@ -309,9 +328,13 @@ const ResultEntry = () => {
 
             <div>
               <Label>Section</Label>
-              <Select value={selectedSection} onValueChange={setSelectedSection} disabled={!selectedClass}>
+              <Select 
+                value={selectedSection} 
+                onValueChange={setSelectedSection} 
+                disabled={!selectedClass || availableSections.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Section" />
+                  <SelectValue placeholder={availableSections.length === 0 ? "No sections available" : "Select Section"} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableSections.map((section: string) => (
@@ -321,6 +344,12 @@ const ResultEntry = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedClass && availableSections.length === 0 && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  No sections configured for this class
+                </p>
+              )}
             </div>
 
             <div>
@@ -367,6 +396,18 @@ const ResultEntry = () => {
             </div>
           )}
 
+          {!loading && !selectedClass && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Please select a class to begin</p>
+            </div>
+          )}
+
+          {!loading && selectedClass && !selectedSection && availableSections.length > 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Please select a section</p>
+            </div>
+          )}
+
           {!loading && students.length > 0 && (
             <>
               <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -375,15 +416,15 @@ const ResultEntry = () => {
                     <tr className="border-b bg-muted/50">
                       <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Roll</th>
                       <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Name</th>
-                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Theory</th>
-                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Practical</th>
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Theory (75)</th>
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Practical (25)</th>
                       <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Total</th>
                       <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Grade</th>
                       <th className="text-center py-2 sm:py-3 px-2 sm:px-4">GPA</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map((student, index) => {
+                    {students.map((student) => {
                       const result = results.find(r => r.student_id === student.id);
                       const total = (result?.theory_marks || 0) + (result?.practical_marks || 0);
                       const { grade, gpa } = calculateGradeAndGPA(total);
@@ -436,6 +477,12 @@ const ResultEntry = () => {
           )}
         </Card>
       </div>
+
+      <LogoutConfirmDialog
+        open={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleLogout}
+      />
     </div>
   );
 };
