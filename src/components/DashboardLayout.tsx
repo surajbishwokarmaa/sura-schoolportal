@@ -1,10 +1,11 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "./ui/button";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -22,6 +23,7 @@ export function DashboardLayout({
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -47,7 +49,7 @@ export function DashboardLayout({
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            <Button variant="ghost" size="sm" onClick={() => setShowLogoutDialog(true)}>
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>
@@ -68,6 +70,13 @@ export function DashboardLayout({
         </div>
         {children}
       </main>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmDialog
+        open={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleSignOut}
+      />
     </div>
   );
 }

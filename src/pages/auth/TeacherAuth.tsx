@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ArrowLeft, Mail } from 'lucide-react';
+import { Users, ArrowLeft, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -12,17 +12,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const teacherLoginSchema = z.object({
-  identifier: z.string()
+  phone: z.string()
     .trim()
-    .min(1, 'Email or Phone is required')
-    .max(255, 'Input must be less than 255 characters'),
+    .min(10, 'Phone number must be at least 10 digits')
+    .max(15, 'Phone number must be less than 15 digits')
+    .regex(/^[0-9+\-\s]+$/, 'Invalid phone number format'),
   password: z.string()
     .min(1, 'Password is required')
     .max(128, 'Password must be less than 128 characters'),
 });
 
 const TeacherAuth = () => {
-  const [identifier, setIdentifier] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -33,8 +34,11 @@ const TeacherAuth = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Clean phone number - remove spaces and dashes
+    const cleanPhone = phone.replace(/[\s\-]/g, '');
+
     // Validate input
-    const validation = teacherLoginSchema.safeParse({ identifier, password });
+    const validation = teacherLoginSchema.safeParse({ phone: cleanPhone, password });
     
     if (!validation.success) {
       const firstError = validation.error.errors[0];
@@ -47,19 +51,19 @@ const TeacherAuth = () => {
       return;
     }
 
-    // Check if identifier is email or phone
-    const isEmail = identifier.includes('@');
-    let emailToUse = identifier;
-
-    // If phone number, look up teacher's email
-    if (!isEmail) {
+    try {
+      // Look up teacher's email by phone number
       const { data: teacherData, error: lookupError } = await supabase
         .from('teachers')
         .select('email')
-        .eq('phone', identifier)
+        .eq('phone', cleanPhone)
         .maybeSingle();
 
-      if (lookupError || !teacherData || !teacherData.email) {
+      if (lookupError) {
+        throw lookupError;
+      }
+
+      if (!teacherData || !teacherData.email) {
         toast({
           title: "Login Failed",
           description: "No teacher found with this phone number. Please contact the administrator.",
@@ -69,25 +73,31 @@ const TeacherAuth = () => {
         return;
       }
 
-      emailToUse = teacherData.email;
-    }
+      const { error } = await signIn(teacherData.email, password);
 
-    const { error } = await signIn(emailToUse, password);
-
-    if (error) {
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: "Invalid credentials. Please check your phone number and password.",
+          variant: "destructive"
+        });
+        setLoading(false);
+      } else {
+        toast({
+          title: "Welcome Back!",
+          description: "Redirecting to dashboard...",
+        });
+        // Small delay to ensure auth state is updated
+        setTimeout(() => navigate('/teacher'), 100);
+        setLoading(false);
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Login Failed",
-        description: "Invalid credentials. Please check your email/phone and password.",
+        description: "An error occurred. Please try again.",
         variant: "destructive"
       });
-      setLoading(false);
-    } else {
-      toast({
-        title: "Welcome Back!",
-        description: "Redirecting to dashboard...",
-      });
-      // Small delay to ensure auth state is updated
-      setTimeout(() => navigate('/teacher'), 100);
       setLoading(false);
     }
   };
@@ -98,10 +108,10 @@ const TeacherAuth = () => {
         <Button
           variant="ghost"
           className="mb-4 sm:mb-6"
-          onClick={() => navigate('/select-role')}
+          onClick={() => navigate('/')}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Role Selection
+          Back to Home
         </Button>
 
         <div className="max-w-md mx-auto">
@@ -116,21 +126,21 @@ const TeacherAuth = () => {
           <Card className="p-4 sm:p-8">
             <form onSubmit={handleLogin} className="space-y-4 sm:space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="identifier" className="text-sm sm:text-base">Email or Phone Number</Label>
+                <Label htmlFor="phone" className="text-sm sm:text-base">Phone Number</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                  <Phone className="absolute left-3 top-3 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                   <Input
-                    id="identifier"
-                    type="text"
-                    placeholder="Email or Phone Number"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter your phone number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     className="pl-9 sm:pl-10 text-base"
                     required
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  You can use either your email or phone number to login
+                  Use the phone number registered by admin
                 </p>
               </div>
 
