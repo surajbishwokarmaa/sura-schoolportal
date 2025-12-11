@@ -118,6 +118,13 @@ const StudentDashboard = () => {
       color: 'from-blue-500 to-blue-600'
     },
     {
+      title: 'Subject Results',
+      description: 'View results by subject',
+      icon: TrendingUp,
+      path: '/student/subject-results',
+      color: 'from-emerald-500 to-emerald-600'
+    },
+    {
       title: 'Staff Info',
       description: 'View teacher directory',
       icon: Users,
@@ -129,7 +136,7 @@ const StudentDashboard = () => {
       description: 'Download PDF marksheet',
       icon: Download,
       path: '/student/marksheet',
-      color: 'from-green-500 to-emerald-600'
+      color: 'from-green-500 to-green-600'
     }
   ];
 

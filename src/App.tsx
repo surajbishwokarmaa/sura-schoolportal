@@ -11,11 +11,13 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import ClassesManagement from "./pages/admin/ClassesManagement";
 import TeachersManagement from "./pages/admin/TeachersManagement";
 import StudentsManagement from "./pages/admin/StudentsManagement";
+import SubjectsManagement from "./pages/admin/SubjectsManagement";
 import BulkUploadManagement from "./pages/admin/BulkUploadManagement";
 import NoticesManagement from "./pages/admin/NoticesManagement";
 import SystemGuide from "./pages/admin/SystemGuide";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ViewMarksheet from "./pages/student/ViewMarksheet";
+import SubjectResults from "./pages/student/SubjectResults";
 import StaffInfo from "./pages/student/StaffInfo";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import ResultEntry from "./pages/teacher/ResultEntry";
@@ -36,17 +38,19 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth/teacher" element={<TeacherAuth />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
-          <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/student/marksheet" element={<ViewMarksheet />} />
-          <Route path="/student/staff" element={<StaffInfo />} />
-              <Route path="/teacher" element={<TeacherDashboard />} />
-              <Route path="/teacher/result-entry" element={<ResultEntry />} />
-              <Route path="/teacher/students" element={<ViewStudents />} />
-              <Route path="/teacher/results" element={<ViewResults />} />
+            <Route path="/student" element={<StudentDashboard />} />
+            <Route path="/student/marksheet" element={<ViewMarksheet />} />
+            <Route path="/student/subject-results" element={<SubjectResults />} />
+            <Route path="/student/staff" element={<StaffInfo />} />
+            <Route path="/teacher" element={<TeacherDashboard />} />
+            <Route path="/teacher/result-entry" element={<ResultEntry />} />
+            <Route path="/teacher/students" element={<ViewStudents />} />
+            <Route path="/teacher/results" element={<ViewResults />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/classes" element={<ClassesManagement />} />
             <Route path="/admin/teachers" element={<TeachersManagement />} />
             <Route path="/admin/students" element={<StudentsManagement />} />
+            <Route path="/admin/subjects" element={<SubjectsManagement />} />
             <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
             <Route path="/admin/notices" element={<NoticesManagement />} />
             <Route path="/admin/system-guide" element={<SystemGuide />} />
