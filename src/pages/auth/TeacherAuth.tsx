@@ -52,18 +52,15 @@ const TeacherAuth = () => {
     }
 
     try {
-      // Look up teacher's email by phone number
+      // Look up teacher's email by phone number using secure function
       const { data: teacherData, error: lookupError } = await supabase
-        .from('teachers')
-        .select('email')
-        .eq('phone', cleanPhone)
-        .maybeSingle();
+        .rpc('get_teacher_login_info', { teacher_phone_input: cleanPhone });
 
       if (lookupError) {
         throw lookupError;
       }
 
-      if (!teacherData || !teacherData.email) {
+      if (!teacherData || teacherData.length === 0 || !teacherData[0]?.teacher_email) {
         toast({
           title: "Login Failed",
           description: "No teacher found with this phone number. Please contact the administrator.",
@@ -73,7 +70,9 @@ const TeacherAuth = () => {
         return;
       }
 
-      const { error } = await signIn(teacherData.email, password);
+      const teacherEmail = teacherData[0].teacher_email;
+
+      const { error } = await signIn(teacherEmail, password);
 
       if (error) {
         toast({
