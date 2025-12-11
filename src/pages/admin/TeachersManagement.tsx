@@ -46,9 +46,9 @@ const TeachersManagement = () => {
     name: '',
     phone: '',
     subjects: '',
-    classesAssigned: '',
     password: ''
   });
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -163,7 +163,7 @@ const TeachersManagement = () => {
     setIsLoading(true);
 
     const subjectsArray = formData.subjects.split(',').map(s => s.trim()).filter(Boolean);
-    const classesArray = formData.classesAssigned.split(',').map(s => s.trim()).filter(Boolean);
+    const classesArray = selectedClasses;
 
     if (editingTeacher) {
       const { error } = await supabase
@@ -326,9 +326,9 @@ const TeachersManagement = () => {
       name: teacher.name,
       phone: teacher.phone || '',
       subjects: teacher.subjects.join(', '),
-      classesAssigned: teacher.classes_assigned.join(', '),
       password: ''
     });
+    setSelectedClasses(teacher.classes_assigned || []);
     setPhotoPreview(teacher.photo_url || '');
     setIsDialogOpen(true);
   };
@@ -363,13 +363,21 @@ const TeachersManagement = () => {
       name: '',
       phone: '',
       subjects: '',
-      classesAssigned: '',
       password: ''
     });
+    setSelectedClasses([]);
     setPhotoFile(null);
     setPhotoPreview('');
     setEditingTeacher(null);
     setIsDialogOpen(false);
+  };
+
+  const toggleClass = (className: string) => {
+    setSelectedClasses(prev => 
+      prev.includes(className) 
+        ? prev.filter(c => c !== className)
+        : [...prev, className]
+    );
   };
 
   if (loading) {
@@ -464,17 +472,30 @@ const TeachersManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="classesAssigned">Assigned Classes (comma-separated) *</Label>
-                  <Input
-                    id="classesAssigned"
-                    value={formData.classesAssigned}
-                    onChange={(e) => setFormData({...formData, classesAssigned: e.target.value})}
-                    placeholder="e.g., Class 1, Class 2"
-                    required
-                  />
-                  {classes.length > 0 && (
+                  <Label>Assigned Classes *</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-40 overflow-y-auto border rounded-md p-3">
+                    {classes.length > 0 ? (
+                      classes.map((cls) => (
+                        <label 
+                          key={cls.id} 
+                          className="flex items-center gap-2 cursor-pointer hover:bg-muted p-1.5 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedClasses.includes(cls.name)}
+                            onChange={() => toggleClass(cls.name)}
+                            className="rounded border-input"
+                          />
+                          <span className="text-sm">{cls.name}</span>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground col-span-full">No classes available. Create classes first.</p>
+                    )}
+                  </div>
+                  {selectedClasses.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Available classes: {classes.map(c => c.name).join(', ')}
+                      Selected: {selectedClasses.join(', ')}
                     </p>
                   )}
                 </div>
