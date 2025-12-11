@@ -15,6 +15,7 @@ const AdminDashboard = () => {
     students: 0,
     teachers: 0,
     classes: 0,
+    subjects: 0,
     results: 0
   });
   const [dataLoading, setDataLoading] = useState(true);
@@ -29,10 +30,11 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     setDataLoading(true);
-    const [studentsRes, teachersRes, classesRes, resultsRes] = await Promise.all([
+    const [studentsRes, teachersRes, classesRes, subjectsRes, resultsRes] = await Promise.all([
       supabase.from('students').select('*', { count: 'exact', head: true }),
       supabase.from('teachers').select('*', { count: 'exact', head: true }),
       supabase.from('classes').select('*', { count: 'exact', head: true }),
+      supabase.from('subjects').select('*', { count: 'exact', head: true }),
       supabase.from('results').select('*', { count: 'exact', head: true })
     ]);
 
@@ -40,6 +42,7 @@ const AdminDashboard = () => {
       students: studentsRes.count || 0,
       teachers: teachersRes.count || 0,
       classes: classesRes.count || 0,
+      subjects: subjectsRes.count || 0,
       results: resultsRes.count || 0
     });
     setDataLoading(false);
@@ -62,10 +65,17 @@ const AdminDashboard = () => {
     },
     {
       title: 'Manage Classes',
-      description: 'Classes, sections & subjects',
+      description: 'Classes & sections',
       icon: BookOpen,
       path: '/admin/classes',
       color: 'from-purple-500 to-purple-600'
+    },
+    {
+      title: 'Manage Subjects',
+      description: 'Add subjects for each class',
+      icon: FileText,
+      path: '/admin/subjects',
+      color: 'from-cyan-500 to-cyan-600'
     },
     {
       title: 'Bulk Upload',

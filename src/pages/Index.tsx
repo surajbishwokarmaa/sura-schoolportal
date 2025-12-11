@@ -131,7 +131,7 @@ const Index = () => {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="9807470285"
+                    placeholder="Enter Phone Number"
                     value={parentPhone}
                     onChange={(e) => setParentPhone(e.target.value)}
                     className="pl-10"

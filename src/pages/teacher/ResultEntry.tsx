@@ -7,14 +7,16 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, User } from 'lucide-react';
 import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
 
 interface Student {
   id: string;
   name: string;
   roll_no: string;
+  photo_url: string | null;
 }
 
 interface ResultEntry {
@@ -29,13 +31,23 @@ interface ClassData {
   sections: string[] | null;
 }
 
+interface SubjectData {
+  id: string;
+  name: string;
+  theory_full_marks: number;
+  practical_full_marks: number;
+  total_marks: number;
+}
+
 const ResultEntry = () => {
   const { user, userRole, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
   const [classes, setClasses] = useState<ClassData[]>([]);
+  const [subjects, setSubjects] = useState<SubjectData[]>([]);
   const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
@@ -44,10 +56,10 @@ const ResultEntry = () => {
   const [teacherData, setTeacherData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [currentSubject, setCurrentSubject] = useState<SubjectData | null>(null);
 
   // Get sections for selected class from database
   const availableSections = classes.find(c => c.name === selectedClass)?.sections || [];
-  const availableSubjects = teacherData?.subjects || [];
 
   useEffect(() => {
     if (!user || userRole !== 'teacher') {
@@ -58,12 +70,27 @@ const ResultEntry = () => {
     fetchClasses();
   }, [user, userRole]);
 
-  // Reset section when class changes
+  // Reset section when class changes and fetch subjects
   useEffect(() => {
     setSelectedSection('');
+    setSelectedSubject('');
     setStudents([]);
     setResults([]);
-  }, [selectedClass]);
+    
+    if (selectedClass) {
+      const classData = classes.find(c => c.name === selectedClass);
+      if (classData) {
+        setSelectedClassId(classData.id);
+        fetchSubjectsForClass(classData.id);
+      }
+    }
+  }, [selectedClass, classes]);
+
+  // Update current subject when subject selection changes
+  useEffect(() => {
+    const subject = subjects.find(s => s.name === selectedSubject);
+    setCurrentSubject(subject || null);
+  }, [selectedSubject, subjects]);
 
   // Fetch students when all selections are made
   useEffect(() => {
@@ -105,6 +132,32 @@ const ResultEntry = () => {
     }
   };
 
+  const fetchSubjectsForClass = async (classId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('id, name, theory_full_marks, practical_full_marks, total_marks')
+        .eq('class_id', classId)
+        .order('name');
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setSubjects(data);
+      } else {
+        setSubjects([]);
+        toast({
+          title: 'No Subjects Found',
+          description: 'No subjects configured for this class. Please ask admin to add subjects.',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching subjects:', error);
+      setSubjects([]);
+    }
+  };
+
   const fetchStudents = async () => {
     if (!selectedClass || !selectedSection || !selectedSubject) {
       setStudents([]);
@@ -117,7 +170,7 @@ const ResultEntry = () => {
     try {
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, name, roll_no')
+        .select('id, name, roll_no, photo_url')
         .eq('class', selectedClass)
         .eq('section', selectedSection)
         .eq('is_active', true)
@@ -220,7 +273,7 @@ const ResultEntry = () => {
               body: {
                 theoryMarks: r.theory_marks,
                 practicalMarks: r.practical_marks,
-                fullMarks: 100
+                fullMarks: currentSubject?.total_marks || 100
               }
             });
 
@@ -297,6 +350,8 @@ const ResultEntry = () => {
 
   // Filter classes that teacher is assigned to
   const teacherClasses = teacherData?.classes_assigned || [];
+  const theoryMax = currentSubject?.theory_full_marks || 75;
+  const practicalMax = currentSubject?.practical_full_marks || 25;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
@@ -354,18 +409,28 @@ const ResultEntry = () => {
 
             <div>
               <Label>Subject</Label>
-              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+              <Select 
+                value={selectedSubject} 
+                onValueChange={setSelectedSubject}
+                disabled={!selectedClass || subjects.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Subject" />
+                  <SelectValue placeholder={subjects.length === 0 ? "No subjects available" : "Select Subject"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableSubjects.map((subject: string) => (
-                    <SelectItem key={subject} value={subject}>
-                      {subject}
+                  {subjects.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.name}>
+                      {subject.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {selectedClass && subjects.length === 0 && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  No subjects configured for this class
+                </p>
+              )}
             </div>
 
             <div>
@@ -383,6 +448,15 @@ const ResultEntry = () => {
               </Select>
             </div>
           </div>
+
+          {currentSubject && (
+            <div className="mb-4 p-3 bg-muted/50 rounded-lg text-sm">
+              <span className="font-medium">Subject: </span>{currentSubject.name} | 
+              <span className="ml-2">Theory: {currentSubject.theory_full_marks}</span> | 
+              <span className="ml-2">Practical: {currentSubject.practical_full_marks}</span> | 
+              <span className="ml-2 font-medium">Total: {currentSubject.total_marks}</span>
+            </div>
+          )}
 
           {loading && (
             <div className="text-center py-8">
@@ -410,17 +484,78 @@ const ResultEntry = () => {
 
           {!loading && students.length > 0 && (
             <>
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <table className="w-full text-sm sm:text-base">
+              {/* Mobile: Card-style layout */}
+              <div className="block lg:hidden space-y-4">
+                {students.map((student) => {
+                  const result = results.find(r => r.student_id === student.id);
+                  const total = (result?.theory_marks || 0) + (result?.practical_marks || 0);
+                  const { grade, gpa } = calculateGradeAndGPA(total);
+
+                  return (
+                    <Card key={student.id} className="p-4">
+                      <div className="flex items-start gap-3 mb-4">
+                        <Avatar className="w-12 h-12 border-2 border-primary/20">
+                          <AvatarImage src={student.photo_url || ''} alt={student.name} />
+                          <AvatarFallback className="bg-primary/10">
+                            <User className="w-6 h-6 text-primary" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{student.name}</h4>
+                          <p className="text-sm text-muted-foreground">Roll: {student.roll_no}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">
+                            {grade}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Theory ({theoryMax})</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={theoryMax}
+                            value={result?.theory_marks || 0}
+                            onChange={(e) => updateResult(student.id, 'theory_marks', e.target.value)}
+                            className="text-center"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Practical ({practicalMax})</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={practicalMax}
+                            value={result?.practical_marks || 0}
+                            onChange={(e) => updateResult(student.id, 'practical_marks', e.target.value)}
+                            className="text-center"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex justify-between text-sm">
+                        <span>Total: <strong>{total}</strong></span>
+                        <span>GPA: <strong>{gpa.toFixed(1)}</strong></span>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: Table layout */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Roll</th>
-                      <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Name</th>
-                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Theory (75)</th>
-                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Practical (25)</th>
-                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Total</th>
-                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Grade</th>
-                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4">GPA</th>
+                      <th className="text-left py-3 px-4">Photo</th>
+                      <th className="text-left py-3 px-4">Roll</th>
+                      <th className="text-left py-3 px-4">Name</th>
+                      <th className="text-center py-3 px-4">Theory ({theoryMax})</th>
+                      <th className="text-center py-3 px-4">Practical ({practicalMax})</th>
+                      <th className="text-center py-3 px-4">Total</th>
+                      <th className="text-center py-3 px-4">Grade</th>
+                      <th className="text-center py-3 px-4">GPA</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -431,35 +566,43 @@ const ResultEntry = () => {
 
                       return (
                         <tr key={student.id} className="border-b hover:bg-muted/50">
-                          <td className="py-2 sm:py-3 px-2 sm:px-4 font-medium">{student.roll_no}</td>
-                          <td className="py-2 sm:py-3 px-2 sm:px-4">{student.name}</td>
-                          <td className="py-2 sm:py-3 px-2 sm:px-4">
+                          <td className="py-3 px-4">
+                            <Avatar className="w-10 h-10 border-2 border-primary/20">
+                              <AvatarImage src={student.photo_url || ''} alt={student.name} />
+                              <AvatarFallback className="bg-primary/10 text-xs">
+                                <User className="w-5 h-5 text-primary" />
+                              </AvatarFallback>
+                            </Avatar>
+                          </td>
+                          <td className="py-3 px-4 font-medium">{student.roll_no}</td>
+                          <td className="py-3 px-4">{student.name}</td>
+                          <td className="py-3 px-4">
                             <Input
                               type="number"
                               min="0"
-                              max="75"
+                              max={theoryMax}
                               value={result?.theory_marks || 0}
                               onChange={(e) => updateResult(student.id, 'theory_marks', e.target.value)}
-                              className="w-16 sm:w-24 mx-auto text-center"
+                              className="w-20 mx-auto text-center"
                             />
                           </td>
-                          <td className="py-2 sm:py-3 px-2 sm:px-4">
+                          <td className="py-3 px-4">
                             <Input
                               type="number"
                               min="0"
-                              max="25"
+                              max={practicalMax}
                               value={result?.practical_marks || 0}
                               onChange={(e) => updateResult(student.id, 'practical_marks', e.target.value)}
-                              className="w-16 sm:w-24 mx-auto text-center"
+                              className="w-20 mx-auto text-center"
                             />
                           </td>
-                          <td className="text-center py-2 sm:py-3 px-2 sm:px-4 font-semibold">{total}</td>
-                          <td className="text-center py-2 sm:py-3 px-2 sm:px-4">
-                            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs sm:text-sm font-medium">
+                          <td className="text-center py-3 px-4 font-semibold">{total}</td>
+                          <td className="text-center py-3 px-4">
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">
                               {grade}
                             </span>
                           </td>
-                          <td className="text-center py-2 sm:py-3 px-2 sm:px-4 font-medium">{gpa.toFixed(1)}</td>
+                          <td className="text-center py-3 px-4 font-medium">{gpa.toFixed(1)}</td>
                         </tr>
                       );
                     })}
