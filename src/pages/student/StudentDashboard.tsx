@@ -4,12 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, TrendingUp, Download, Users } from 'lucide-react';
+import { FileText, TrendingUp, Download, Users, Bell, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-
+import { getCurrentNepaliDate } from '@/lib/nepaliDate';
 
 interface StudentData {
   id: string;
@@ -22,24 +22,14 @@ interface StudentData {
   parent_phone: string;
 }
 
-interface Result {
-  id: string;
-  subject: string;
-  term: string;
-  theory_marks: number;
-  practical_marks: number;
-  total_marks: number;
-  grade: string;
-  gpa: number;
-}
-
 const StudentDashboard = () => {
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [student, setStudent] = useState<StudentData | null>(null);
-  const [results, setResults] = useState<Result[]>([]);
+  const [noticesCount, setNoticesCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const nepaliDate = getCurrentNepaliDate();
 
   useEffect(() => {
     if (!user || userRole !== 'student') {
@@ -48,7 +38,7 @@ const StudentDashboard = () => {
     }
 
     fetchStudentData();
-    fetchResults();
+    fetchNoticesCount();
   }, [user, userRole, navigate]);
 
   const fetchStudentData = async () => {
@@ -82,31 +72,18 @@ const StudentDashboard = () => {
     }
   };
 
-  const fetchResults = async () => {
+  const fetchNoticesCount = async () => {
     try {
-      const { data: studentData } = await supabase
-        .from('students')
-        .select('id')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (!studentData) return;
-
-      const { data, error } = await supabase
-        .from('results')
-        .select('*')
-        .eq('student_id', studentData.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setResults(data || []);
+      const { count } = await supabase
+        .from('notices')
+        .select('*', { count: 'exact', head: true })
+        .or('visible_to.eq.all,visible_to.eq.student');
+      
+      setNoticesCount(count || 0);
     } catch (error) {
-      console.error('Error fetching results:', error);
+      console.error('Error fetching notices count:', error);
     }
   };
-
-  const totalResults = results.length;
-  const publishedResults = results.filter(r => r.term).length;
 
   const quickActions = [
     {
@@ -115,6 +92,13 @@ const StudentDashboard = () => {
       icon: FileText,
       path: '/student/marksheet',
       color: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'View Notices',
+      description: 'School announcements',
+      icon: Bell,
+      path: '/student/notices',
+      color: 'from-amber-500 to-amber-600'
     },
     {
       title: 'Staff Info',
@@ -141,6 +125,13 @@ const StudentDashboard = () => {
       title="Student Dashboard"
       subtitle="View your academic performance"
     >
+      {/* Date Display */}
+      <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <Calendar className="w-4 h-4" />
+        <span>{nepaliDate.nepali}</span>
+        <span className="text-xs">({nepaliDate.english})</span>
+      </div>
+
       {/* Student Profile Card */}
       {student && (
         <Card className="p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
@@ -179,17 +170,18 @@ const StudentDashboard = () => {
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <StatCard
-          title="Total Results"
-          value={totalResults}
-          icon={FileText}
-          description="Results published"
-          className="hover-scale"
+          title="Notices"
+          value={noticesCount}
+          icon={Bell}
+          description="Active announcements"
+          className="hover-scale cursor-pointer"
+          onClick={() => navigate('/student/notices')}
         />
         <StatCard
-          title="Published Results"
-          value={publishedResults}
+          title="Class"
+          value={student?.class || 'N/A'}
           icon={TrendingUp}
-          description="Available to view"
+          description={`Section: ${student?.section || 'N/A'}`}
           className="hover-scale"
         />
       </div>
@@ -200,22 +192,22 @@ const StudentDashboard = () => {
           <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
           Quick Actions
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {quickActions.map((action) => (
             <Card
-              key={action.path}
+              key={action.title}
               className="p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group animate-fade-in"
               onClick={() => navigate(action.path)}
             >
               <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
-                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
-                  <action.icon className="w-7 h-7 sm:w-8 sm:h-8" />
+                <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
+                  <action.icon className="w-6 h-6 sm:w-8 sm:h-8" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-primary transition-colors">
+                  <h3 className="font-semibold text-sm sm:text-lg mb-1 group-hover:text-primary transition-colors">
                     {action.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                     {action.description}
                   </p>
                 </div>
@@ -224,32 +216,6 @@ const StudentDashboard = () => {
           ))}
         </div>
       </div>
-
-      {/* Recent Results */}
-      {results.length > 0 && (
-        <Card className="p-4 sm:p-6">
-          <h3 className="font-semibold text-lg mb-4">Recent Results</h3>
-          <div className="space-y-3">
-            {results.slice(0, 5).map((result) => (
-              <div
-                key={result.id}
-                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{result.subject}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {result.term.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">{result.grade}</p>
-                  <p className="text-sm text-muted-foreground">GPA: {result.gpa}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </DashboardLayout>
   );
 };

@@ -17,12 +17,13 @@ import NoticesManagement from "./pages/admin/NoticesManagement";
 import SystemGuide from "./pages/admin/SystemGuide";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ViewMarksheet from "./pages/student/ViewMarksheet";
-
+import StudentViewNotices from "./pages/student/ViewNotices";
 import StaffInfo from "./pages/student/StaffInfo";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import ResultEntry from "./pages/teacher/ResultEntry";
 import ViewStudents from "./pages/teacher/ViewStudents";
 import ViewResults from "./pages/teacher/ViewResults";
+import TeacherViewNotices from "./pages/teacher/ViewNotices";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,12 +41,13 @@ const App = () => (
             <Route path="/auth/admin" element={<AdminAuth />} />
             <Route path="/student" element={<StudentDashboard />} />
             <Route path="/student/marksheet" element={<ViewMarksheet />} />
-            
+            <Route path="/student/notices" element={<StudentViewNotices />} />
             <Route path="/student/staff" element={<StaffInfo />} />
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/teacher/result-entry" element={<ResultEntry />} />
             <Route path="/teacher/students" element={<ViewStudents />} />
             <Route path="/teacher/results" element={<ViewResults />} />
+            <Route path="/teacher/notices" element={<TeacherViewNotices />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/classes" element={<ClassesManagement />} />
             <Route path="/admin/teachers" element={<TeachersManagement />} />
