@@ -4,12 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, TrendingUp, Download, Award, Users } from 'lucide-react';
+import { FileText, TrendingUp, Download, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { calculateOverallGPA } from '@/lib/gradeCalculator';
+
 
 interface StudentData {
   id: string;
@@ -105,24 +105,16 @@ const StudentDashboard = () => {
     }
   };
 
-  const overallGPA = results.length > 0 ? calculateOverallGPA(results) : 0;
   const totalResults = results.length;
   const publishedResults = results.filter(r => r.term).length;
 
   const quickActions = [
     {
       title: 'View Marksheet',
-      description: 'See your detailed results',
+      description: 'See all your results',
       icon: FileText,
       path: '/student/marksheet',
       color: 'from-blue-500 to-blue-600'
-    },
-    {
-      title: 'Subject Results',
-      description: 'View results by subject',
-      icon: TrendingUp,
-      path: '/student/subject-results',
-      color: 'from-emerald-500 to-emerald-600'
     },
     {
       title: 'Staff Info',
@@ -185,14 +177,7 @@ const StudentDashboard = () => {
       )}
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <StatCard
-          title="Overall GPA"
-          value={overallGPA.toFixed(2)}
-          icon={Award}
-          description="Your current GPA"
-          className="hover-scale"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <StatCard
           title="Total Results"
           value={totalResults}

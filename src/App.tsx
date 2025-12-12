@@ -17,7 +17,7 @@ import NoticesManagement from "./pages/admin/NoticesManagement";
 import SystemGuide from "./pages/admin/SystemGuide";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ViewMarksheet from "./pages/student/ViewMarksheet";
-import SubjectResults from "./pages/student/SubjectResults";
+
 import StaffInfo from "./pages/student/StaffInfo";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import ResultEntry from "./pages/teacher/ResultEntry";
@@ -40,7 +40,7 @@ const App = () => (
             <Route path="/auth/admin" element={<AdminAuth />} />
             <Route path="/student" element={<StudentDashboard />} />
             <Route path="/student/marksheet" element={<ViewMarksheet />} />
-            <Route path="/student/subject-results" element={<SubjectResults />} />
+            
             <Route path="/student/staff" element={<StaffInfo />} />
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/teacher/result-entry" element={<ResultEntry />} />
