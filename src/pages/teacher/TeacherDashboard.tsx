@@ -4,11 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { BookOpen, FileText, Users, Edit, Eye, TrendingUp } from 'lucide-react';
+import { BookOpen, FileText, Users, Edit, Eye, TrendingUp, Bell, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { getCurrentNepaliDate } from '@/lib/nepaliDate';
 
 interface TeacherData {
   id: string;
@@ -28,9 +29,10 @@ const TeacherDashboard = () => {
   const [stats, setStats] = useState({
     totalStudents: 0,
     resultsEntered: 0,
-    pendingResults: 0
+    noticesCount: 0
   });
   const [loading, setLoading] = useState(true);
+  const nepaliDate = getCurrentNepaliDate();
 
   useEffect(() => {
     if (!user || userRole !== 'teacher') {
@@ -39,6 +41,7 @@ const TeacherDashboard = () => {
     }
 
     fetchTeacherData();
+    fetchNoticesCount();
   }, [user, userRole, navigate]);
 
   const fetchTeacherData = async () => {
@@ -63,11 +66,11 @@ const TeacherDashboard = () => {
         .select('*', { count: 'exact', head: true })
         .eq('teacher_id', data.id);
 
-      setStats({
+      setStats(prev => ({
+        ...prev,
         totalStudents: studentsCount || 0,
-        resultsEntered: resultsCount || 0,
-        pendingResults: 0
-      });
+        resultsEntered: resultsCount || 0
+      }));
     } catch (error) {
       console.error('Error fetching teacher data:', error);
       toast({
@@ -77,6 +80,22 @@ const TeacherDashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchNoticesCount = async () => {
+    try {
+      const { count } = await supabase
+        .from('notices')
+        .select('*', { count: 'exact', head: true })
+        .or('visible_to.eq.all,visible_to.eq.teacher');
+      
+      setStats(prev => ({
+        ...prev,
+        noticesCount: count || 0
+      }));
+    } catch (error) {
+      console.error('Error fetching notices count:', error);
     }
   };
 
@@ -101,6 +120,13 @@ const TeacherDashboard = () => {
       icon: Users,
       path: '/teacher/students',
       color: 'from-purple-500 to-purple-600'
+    },
+    {
+      title: 'View Notices',
+      description: 'School announcements',
+      icon: Bell,
+      path: '/teacher/notices',
+      color: 'from-amber-500 to-amber-600'
     }
   ];
 
@@ -113,6 +139,13 @@ const TeacherDashboard = () => {
       title="Teacher Dashboard"
       subtitle="Manage classes and student results"
     >
+      {/* Date Display */}
+      <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <Calendar className="w-4 h-4" />
+        <span>{nepaliDate.nepali}</span>
+        <span className="text-xs">({nepaliDate.english})</span>
+      </div>
+
       {/* Teacher Profile Card */}
       {teacher && (
         <Card className="p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
@@ -163,27 +196,35 @@ const TeacherDashboard = () => {
       )}
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <StatCard
           title="Total Students"
           value={stats.totalStudents}
           icon={Users}
-          description="In your assigned classes"
+          description="In your classes"
           className="hover-scale"
         />
         <StatCard
           title="Results Entered"
           value={stats.resultsEntered}
           icon={FileText}
-          description="Total marks submitted"
+          description="Marks submitted"
           className="hover-scale"
         />
         <StatCard
-          title="Subjects Teaching"
+          title="Subjects"
           value={teacher?.subjects.length || 0}
           icon={BookOpen}
-          description="Active subjects"
+          description="Teaching"
           className="hover-scale"
+        />
+        <StatCard
+          title="Notices"
+          value={stats.noticesCount}
+          icon={Bell}
+          description="Announcements"
+          className="hover-scale cursor-pointer"
+          onClick={() => navigate('/teacher/notices')}
         />
       </div>
 
@@ -193,7 +234,7 @@ const TeacherDashboard = () => {
           <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
           Quick Actions
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {quickActions.map((action) => (
             <Card
               key={action.path}
@@ -201,14 +242,14 @@ const TeacherDashboard = () => {
               onClick={() => navigate(action.path)}
             >
               <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
-                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
-                  <action.icon className="w-7 h-7 sm:w-8 sm:h-8" />
+                <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform`}>
+                  <action.icon className="w-6 h-6 sm:w-8 sm:h-8" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-primary transition-colors">
+                  <h3 className="font-semibold text-sm sm:text-lg mb-1 group-hover:text-primary transition-colors">
                     {action.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                     {action.description}
                   </p>
                 </div>

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Download, GraduationCap, FileText } from 'lucide-react';
+import { ArrowLeft, Download, GraduationCap, FileText, Clock } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { generateMarksheetPDF } from '@/lib/pdfGenerator';
 import { calculateOverallGPA, getGradeColor } from '@/lib/gradeCalculator';
@@ -20,6 +20,14 @@ interface StudentData {
   photo_url: string | null;
 }
 
+interface SubjectInfo {
+  id: string;
+  name: string;
+  theory_full_marks: number;
+  practical_full_marks: number;
+  total_marks: number;
+}
+
 interface Result {
   subject: string;
   theory_marks: number | null;
@@ -29,13 +37,21 @@ interface Result {
   gpa: number | null;
 }
 
+interface DisplayResult extends Result {
+  isPending: boolean;
+  theoryFull: number;
+  practicalFull: number;
+  totalFull: number;
+}
+
 const ViewMarksheet = () => {
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [results, setResults] = useState<Result[]>([]);
-  const [totalSubjectsForClass, setTotalSubjectsForClass] = useState<number>(0);
+  const [allSubjects, setAllSubjects] = useState<SubjectInfo[]>([]);
+  const [displayResults, setDisplayResults] = useState<DisplayResult[]>([]);
   const [allSubjectsComplete, setAllSubjectsComplete] = useState<boolean>(false);
   const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
   const [loading, setLoading] = useState(true);
@@ -50,7 +66,7 @@ const ViewMarksheet = () => {
 
   useEffect(() => {
     if (studentData) {
-      fetchResults();
+      fetchSubjectsAndResults();
     }
   }, [studentData, selectedTerm]);
 
@@ -85,7 +101,7 @@ const ViewMarksheet = () => {
     }
   };
 
-  const fetchResults = async () => {
+  const fetchSubjectsAndResults = async () => {
     if (!studentData) return;
 
     try {
@@ -98,36 +114,76 @@ const ViewMarksheet = () => {
 
       if (classError) throw classError;
 
-      // Get total subjects for this class
-      let totalSubjects = 0;
+      // Get ALL subjects for this class
+      let subjects: SubjectInfo[] = [];
       if (classData) {
-        const { count, error: subjectCountError } = await supabase
+        const { data: subjectsData, error: subjectsError } = await supabase
           .from('subjects')
-          .select('*', { count: 'exact', head: true })
-          .eq('class_id', classData.id);
+          .select('id, name, theory_full_marks, practical_full_marks, total_marks')
+          .eq('class_id', classData.id)
+          .order('name');
 
-        if (!subjectCountError && count) {
-          totalSubjects = count;
-          setTotalSubjectsForClass(count);
+        if (!subjectsError && subjectsData) {
+          subjects = subjectsData;
+          setAllSubjects(subjectsData);
         }
       }
 
       // Get student's results for this term
-      const { data, error } = await supabase
+      const { data: resultsData, error: resultsError } = await supabase
         .from('results')
         .select('*')
         .eq('student_id', studentData.id)
         .eq('term', selectedTerm)
         .order('subject');
 
-      if (error) throw error;
+      if (resultsError) throw resultsError;
 
-      if (data) {
-        setResults(data as Result[]);
-        // Check if all subjects have results
-        const isComplete = totalSubjects > 0 && data.length >= totalSubjects;
-        setAllSubjectsComplete(isComplete);
-      }
+      const resultsList = (resultsData || []) as Result[];
+      setResults(resultsList);
+
+      // Create display results with all subjects - showing pending for missing ones
+      const display: DisplayResult[] = subjects.map(subject => {
+        // Case-insensitive match for results
+        const existingResult = resultsList.find(
+          r => r.subject.toLowerCase() === subject.name.toLowerCase()
+        );
+
+        if (existingResult) {
+          return {
+            subject: subject.name,
+            theory_marks: existingResult.theory_marks,
+            practical_marks: existingResult.practical_marks,
+            total_marks: existingResult.total_marks,
+            grade: existingResult.grade,
+            gpa: existingResult.gpa,
+            isPending: false,
+            theoryFull: subject.theory_full_marks,
+            practicalFull: subject.practical_full_marks,
+            totalFull: subject.total_marks
+          };
+        } else {
+          return {
+            subject: subject.name,
+            theory_marks: null,
+            practical_marks: null,
+            total_marks: null,
+            grade: null,
+            gpa: null,
+            isPending: true,
+            theoryFull: subject.theory_full_marks,
+            practicalFull: subject.practical_full_marks,
+            totalFull: subject.total_marks
+          };
+        }
+      });
+
+      setDisplayResults(display);
+
+      // Check if ALL subjects have results
+      const isComplete = subjects.length > 0 && display.every(d => !d.isPending);
+      setAllSubjectsComplete(isComplete);
+
     } catch (error: any) {
       console.error('Error fetching results:', error);
       toast({
@@ -139,15 +195,16 @@ const ViewMarksheet = () => {
   };
 
   const calculateOverallMetrics = () => {
-    if (results.length === 0) return { gpa: 0, totalMarks: 0, percentage: 0 };
+    const completedResults = displayResults.filter(r => !r.isPending);
+    if (completedResults.length === 0) return { gpa: 0, totalMarks: 0, maxMarks: 0, percentage: 0 };
     
-    const totalMarks = results.reduce((sum, r) => sum + (r.total_marks || 0), 0);
-    const maxMarks = results.length * 100;
-    const percentage = (totalMarks / maxMarks) * 100;
-    const validResults = results.filter(r => r.gpa !== null).map(r => ({ gpa: r.gpa as number }));
+    const totalMarks = completedResults.reduce((sum, r) => sum + (r.total_marks || 0), 0);
+    const maxMarks = completedResults.reduce((sum, r) => sum + r.totalFull, 0);
+    const percentage = maxMarks > 0 ? (totalMarks / maxMarks) * 100 : 0;
+    const validResults = completedResults.filter(r => r.gpa !== null).map(r => ({ gpa: r.gpa as number }));
     const gpa = validResults.length > 0 ? calculateOverallGPA(validResults) : 0;
 
-    return { gpa, totalMarks, percentage };
+    return { gpa, totalMarks, maxMarks, percentage };
   };
 
   const getTermDisplay = () => {
@@ -161,16 +218,17 @@ const ViewMarksheet = () => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!studentData || results.length === 0 || !allSubjectsComplete) {
+    if (!studentData || !allSubjectsComplete) {
       toast({
         title: 'Cannot Download',
-        description: allSubjectsComplete ? 'No results available to download' : 'Results are incomplete. Please wait until all subjects are graded.',
+        description: 'Results are incomplete. Please wait until all subjects are graded.',
         variant: 'destructive'
       });
       return;
     }
 
     const metrics = calculateOverallMetrics();
+    const completedResults = displayResults.filter(r => !r.isPending);
     
     await generateMarksheetPDF({
       student: {
@@ -180,7 +238,7 @@ const ViewMarksheet = () => {
         section: studentData.section,
         photoUrl: studentData.photo_url
       },
-      results: results.map(r => ({
+      results: completedResults.map(r => ({
         subject: r.subject,
         theoryMarks: r.theory_marks || 0,
         practicalMarks: r.practical_marks || 0,
@@ -201,6 +259,8 @@ const ViewMarksheet = () => {
   };
 
   const metrics = calculateOverallMetrics();
+  const completedCount = displayResults.filter(r => !r.isPending).length;
+  const totalSubjects = allSubjects.length;
 
   if (loading) {
     return <LoadingSpinner fullScreen />;
@@ -228,7 +288,7 @@ const ViewMarksheet = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleDownloadPDF} disabled={results.length === 0 || !allSubjectsComplete} className="w-full sm:w-auto">
+            <Button onClick={handleDownloadPDF} disabled={!allSubjectsComplete} className="w-full sm:w-auto">
               <Download className="w-4 h-4 mr-2" />
               {allSubjectsComplete ? 'Download PDF' : 'Results Incomplete'}
             </Button>
@@ -284,19 +344,25 @@ const ViewMarksheet = () => {
             </div>
           )}
 
-          {/* Results Status */}
-          {!allSubjectsComplete && results.length > 0 && (
+          {/* Results Status - Show when not all subjects are complete */}
+          {!allSubjectsComplete && totalSubjects > 0 && (
             <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <p className="text-amber-800 dark:text-amber-200 text-sm sm:text-base text-center">
-                ⏳ Results are being processed. {results.length} of {totalSubjectsForClass} subjects completed.
-                <br />
-                <span className="text-xs sm:text-sm">Final marksheet will be available once all subjects are graded.</span>
-              </p>
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <p className="text-amber-800 dark:text-amber-200 font-medium">
+                    Results are not ready yet
+                  </p>
+                  <p className="text-amber-700 dark:text-amber-300 text-sm">
+                    {completedCount} of {totalSubjects} subjects completed. Some subject teachers have not submitted marks.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Results Table - Only show when ALL subjects are complete */}
-          {allSubjectsComplete && results.length > 0 ? (
+          {/* Results Table - Show all subjects with pending status */}
+          {displayResults.length > 0 ? (
             <>
               <div className="overflow-x-auto mb-6 sm:mb-8">
                 <table className="w-full border-collapse text-sm sm:text-base">
@@ -312,40 +378,82 @@ const ViewMarksheet = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {results.map((result, index) => (
-                      <tr key={index} className="hover:bg-muted/50">
+                    {displayResults.map((result, index) => (
+                      <tr key={index} className={`hover:bg-muted/50 ${result.isPending ? 'bg-muted/30' : ''}`}>
                         <td className="border border-border p-2 sm:p-3">{index + 1}</td>
-                        <td className="border border-border p-2 sm:p-3">{result.subject}</td>
-                        <td className="border border-border p-2 sm:p-3 text-center">{result.theory_marks ?? '-'}</td>
-                        <td className="border border-border p-2 sm:p-3 text-center">{result.practical_marks ?? '-'}</td>
-                        <td className="border border-border p-2 sm:p-3 text-center font-semibold">{result.total_marks ?? '-'}</td>
-                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${getGradeColor(result.grade || '')}`}>
-                          {result.grade || '-'}
+                        <td className="border border-border p-2 sm:p-3 capitalize">
+                          {result.subject}
+                          {result.isPending && (
+                            <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Pending)</span>
+                          )}
                         </td>
-                        <td className="border border-border p-2 sm:p-3 text-center">{result.gpa?.toFixed(1) ?? '-'}</td>
+                        <td className="border border-border p-2 sm:p-3 text-center">
+                          {result.isPending ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            result.theory_marks ?? '-'
+                          )}
+                        </td>
+                        <td className="border border-border p-2 sm:p-3 text-center">
+                          {result.isPending ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            result.practical_marks ?? '-'
+                          )}
+                        </td>
+                        <td className="border border-border p-2 sm:p-3 text-center font-semibold">
+                          {result.isPending ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            result.total_marks ?? '-'
+                          )}
+                        </td>
+                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${result.isPending ? 'text-muted-foreground' : getGradeColor(result.grade || '')}`}>
+                          {result.isPending ? '-' : result.grade || '-'}
+                        </td>
+                        <td className="border border-border p-2 sm:p-3 text-center">
+                          {result.isPending ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            result.gpa?.toFixed(1) ?? '-'
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              {/* Summary - Only shown when complete */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6 bg-muted/50 rounded-lg">
-                <div className="text-center">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Marks Obtained</p>
-                  <p className="text-2xl sm:text-3xl font-bold">{metrics.totalMarks}</p>
+              {/* Summary - Only shown when all subjects are complete */}
+              {allSubjectsComplete ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6 bg-muted/50 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Marks Obtained</p>
+                    <p className="text-2xl sm:text-3xl font-bold">{metrics.totalMarks} / {metrics.maxMarks}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Overall GPA</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-primary">{metrics.gpa.toFixed(2)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Percentage</p>
+                    <p className="text-2xl sm:text-3xl font-bold">{metrics.percentage.toFixed(2)}%</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Overall GPA</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-primary">{metrics.gpa.toFixed(2)}</p>
+              ) : (
+                <div className="p-4 sm:p-6 bg-muted/30 rounded-lg text-center">
+                  <p className="text-muted-foreground">
+                    Final results (GPA, Percentage) will be displayed once all subject marks are submitted.
+                  </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Percentage</p>
-                  <p className="text-2xl sm:text-3xl font-bold">{metrics.percentage.toFixed(2)}%</p>
-                </div>
-              </div>
+              )}
             </>
-          ) : !allSubjectsComplete && results.length > 0 ? null : (
+          ) : totalSubjects === 0 ? (
+            <div className="text-center py-8 sm:py-12">
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-base sm:text-lg text-muted-foreground">No subjects configured for your class</p>
+            </div>
+          ) : (
             <div className="text-center py-8 sm:py-12">
               <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
               <p className="text-base sm:text-lg text-muted-foreground">No results available for this term</p>
