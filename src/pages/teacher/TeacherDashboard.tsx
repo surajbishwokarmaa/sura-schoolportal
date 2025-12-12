@@ -127,10 +127,6 @@ const TeacherDashboard = () => {
               <h2 className="text-xl sm:text-2xl font-bold mb-2">{teacher.name}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Email:</span>
-                  <span className="ml-2 font-medium break-all">{teacher.email || 'N/A'}</span>
-                </div>
-                <div>
                   <span className="text-muted-foreground">Phone:</span>
                   <span className="ml-2 font-medium">{teacher.phone || 'N/A'}</span>
                 </div>

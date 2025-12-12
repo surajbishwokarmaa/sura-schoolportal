@@ -133,22 +133,32 @@ const ResultEntry = () => {
   };
 
   const fetchSubjectsForClass = async (classId: string) => {
+    if (!teacherData?.subjects) {
+      setSubjects([]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('subjects')
         .select('id, name, theory_full_marks, practical_full_marks, total_marks')
         .eq('class_id', classId)
+        .in('name', teacherData.subjects)
         .order('name');
 
       if (error) throw error;
 
       if (data && data.length > 0) {
         setSubjects(data);
+        // Auto-select first subject if only one assigned
+        if (data.length === 1) {
+          setSelectedSubject(data[0].name);
+        }
       } else {
         setSubjects([]);
         toast({
           title: 'No Subjects Found',
-          description: 'No subjects configured for this class. Please ask admin to add subjects.',
+          description: 'No subjects matching your assignment found for this class.',
           variant: 'destructive'
         });
       }
@@ -407,28 +417,32 @@ const ResultEntry = () => {
               )}
             </div>
 
-            <div>
-              <Label>Subject</Label>
-              <Select 
-                value={selectedSubject} 
-                onValueChange={setSelectedSubject}
-                disabled={!selectedClass || subjects.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={subjects.length === 0 ? "No subjects available" : "Select Subject"} />
-                </SelectTrigger>
-                <SelectContent>
+            {/* Subject Tabs - Auto-loaded based on teacher's assignment */}
+            <div className="sm:col-span-2 lg:col-span-2">
+              <Label>Your Subject(s)</Label>
+              {subjects.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mt-2">
                   {subjects.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.name}>
+                    <Button
+                      key={subject.id}
+                      type="button"
+                      variant={selectedSubject === subject.name ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedSubject(subject.name)}
+                      className="transition-all"
+                    >
                       {subject.name}
-                    </SelectItem>
+                    </Button>
                   ))}
-                </SelectContent>
-              </Select>
-              {selectedClass && subjects.length === 0 && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  No subjects configured for this class
+                </div>
+              ) : selectedClass ? (
+                <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  No subjects found for your assignment in this class
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Select a class to see your subjects
                 </p>
               )}
             </div>
