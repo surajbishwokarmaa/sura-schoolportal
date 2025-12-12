@@ -35,6 +35,8 @@ const ViewMarksheet = () => {
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [results, setResults] = useState<Result[]>([]);
+  const [totalSubjectsForClass, setTotalSubjectsForClass] = useState<number>(0);
+  const [allSubjectsComplete, setAllSubjectsComplete] = useState<boolean>(false);
   const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
   const [loading, setLoading] = useState(true);
 
@@ -87,6 +89,30 @@ const ViewMarksheet = () => {
     if (!studentData) return;
 
     try {
+      // First, get the class_id for the student's class
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('name', studentData.class)
+        .maybeSingle();
+
+      if (classError) throw classError;
+
+      // Get total subjects for this class
+      let totalSubjects = 0;
+      if (classData) {
+        const { count, error: subjectCountError } = await supabase
+          .from('subjects')
+          .select('*', { count: 'exact', head: true })
+          .eq('class_id', classData.id);
+
+        if (!subjectCountError && count) {
+          totalSubjects = count;
+          setTotalSubjectsForClass(count);
+        }
+      }
+
+      // Get student's results for this term
       const { data, error } = await supabase
         .from('results')
         .select('*')
@@ -98,6 +124,9 @@ const ViewMarksheet = () => {
 
       if (data) {
         setResults(data as Result[]);
+        // Check if all subjects have results
+        const isComplete = totalSubjects > 0 && data.length >= totalSubjects;
+        setAllSubjectsComplete(isComplete);
       }
     } catch (error: any) {
       console.error('Error fetching results:', error);
@@ -132,10 +161,10 @@ const ViewMarksheet = () => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!studentData || results.length === 0) {
+    if (!studentData || results.length === 0 || !allSubjectsComplete) {
       toast({
-        title: 'No Results',
-        description: 'No results available to download',
+        title: 'Cannot Download',
+        description: allSubjectsComplete ? 'No results available to download' : 'Results are incomplete. Please wait until all subjects are graded.',
         variant: 'destructive'
       });
       return;
@@ -199,9 +228,9 @@ const ViewMarksheet = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleDownloadPDF} disabled={results.length === 0} className="w-full sm:w-auto">
+            <Button onClick={handleDownloadPDF} disabled={results.length === 0 || !allSubjectsComplete} className="w-full sm:w-auto">
               <Download className="w-4 h-4 mr-2" />
-              Download PDF
+              {allSubjectsComplete ? 'Download PDF' : 'Results Incomplete'}
             </Button>
           </div>
         </div>
@@ -255,8 +284,19 @@ const ViewMarksheet = () => {
             </div>
           )}
 
-          {/* Results Table */}
-          {results.length > 0 ? (
+          {/* Results Status */}
+          {!allSubjectsComplete && results.length > 0 && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <p className="text-amber-800 dark:text-amber-200 text-sm sm:text-base text-center">
+                ⏳ Results are being processed. {results.length} of {totalSubjectsForClass} subjects completed.
+                <br />
+                <span className="text-xs sm:text-sm">Final marksheet will be available once all subjects are graded.</span>
+              </p>
+            </div>
+          )}
+
+          {/* Results Table - Only show when ALL subjects are complete */}
+          {allSubjectsComplete && results.length > 0 ? (
             <>
               <div className="overflow-x-auto mb-6 sm:mb-8">
                 <table className="w-full border-collapse text-sm sm:text-base">
@@ -289,7 +329,7 @@ const ViewMarksheet = () => {
                 </table>
               </div>
 
-              {/* Summary */}
+              {/* Summary - Only shown when complete */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6 bg-muted/50 rounded-lg">
                 <div className="text-center">
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Marks Obtained</p>
@@ -305,7 +345,7 @@ const ViewMarksheet = () => {
                 </div>
               </div>
             </>
-          ) : (
+          ) : !allSubjectsComplete && results.length > 0 ? null : (
             <div className="text-center py-8 sm:py-12">
               <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
               <p className="text-base sm:text-lg text-muted-foreground">No results available for this term</p>

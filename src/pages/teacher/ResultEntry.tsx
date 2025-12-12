@@ -133,32 +133,47 @@ const ResultEntry = () => {
   };
 
   const fetchSubjectsForClass = async (classId: string) => {
-    if (!teacherData?.subjects) {
+    if (!teacherData?.subjects || teacherData.subjects.length === 0) {
       setSubjects([]);
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      // First get all subjects for this class
+      const { data: allSubjects, error } = await supabase
         .from('subjects')
         .select('id, name, theory_full_marks, practical_full_marks, total_marks')
         .eq('class_id', classId)
-        .in('name', teacherData.subjects)
         .order('name');
 
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        setSubjects(data);
-        // Auto-select first subject if only one assigned
-        if (data.length === 1) {
-          setSelectedSubject(data[0].name);
+      if (allSubjects && allSubjects.length > 0) {
+        // Filter by teacher's assigned subjects (case-insensitive)
+        const teacherSubjectsLower = teacherData.subjects.map((s: string) => s.toLowerCase());
+        const matchingSubjects = allSubjects.filter(subj => 
+          teacherSubjectsLower.includes(subj.name.toLowerCase())
+        );
+
+        if (matchingSubjects.length > 0) {
+          setSubjects(matchingSubjects);
+          // Auto-select first subject if only one assigned
+          if (matchingSubjects.length === 1) {
+            setSelectedSubject(matchingSubjects[0].name);
+          }
+        } else {
+          setSubjects([]);
+          toast({
+            title: 'No Subjects Found',
+            description: `Your assigned subjects (${teacherData.subjects.join(', ')}) are not configured for this class yet.`,
+            variant: 'destructive'
+          });
         }
       } else {
         setSubjects([]);
         toast({
           title: 'No Subjects Found',
-          description: 'No subjects matching your assignment found for this class.',
+          description: 'No subjects configured for this class. Please ask admin to add subjects.',
           variant: 'destructive'
         });
       }
