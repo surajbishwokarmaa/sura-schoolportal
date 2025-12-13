@@ -234,7 +234,9 @@ const StudentsManagement = () => {
       }
 
       const password = formData.password.trim();
-      const studentEmail = `student${formData.rollNo.trim()}@school.edu.np`;
+      // Make email unique by combining class and roll number (e.g., grade10_01@school.edu.np)
+      const classSlug = formData.class.toLowerCase().replace(/\s+/g, '');
+      const studentEmail = `${classSlug}_${formData.rollNo.trim()}@school.edu.np`;
 
       console.log('Creating student account:', { 
         email: studentEmail, 
