@@ -75,12 +75,15 @@ export function getFinalRemarks(percentage: number, allPassing: boolean): string
   return "Needs Improvement";
 }
 
-// Get current academic year in single format (e.g., "2082")
+// Get current academic year in single format (e.g., "2081")
 export function getCurrentAcademicYear(): string {
   const now = new Date();
-  // Nepal academic year roughly follows Nepali calendar
-  // Approximate conversion: AD year - 57 for Nepali year
-  const nepaliYear = now.getFullYear() - 57 + (now.getMonth() >= 3 ? 1 : 0);
+  // Nepal academic year: AD year + 56.7 approximately
+  // The Nepali year is about 56-57 years ahead of AD
+  const adYear = now.getFullYear();
+  // Nepali new year starts around mid-April
+  // Before mid-April, use current AD year + 56, after mid-April use AD year + 57
+  const nepaliYear = adYear + 56 + (now.getMonth() >= 3 ? 1 : 0);
   return nepaliYear.toString();
 }
 

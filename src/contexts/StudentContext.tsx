@@ -39,42 +39,54 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchStudents = async () => {
     try {
-      // First get the parent_phone from the current user's student record
+      // Get parent phone from user metadata or from student record
+      let parentPhone: string | null = null;
+      
+      // Try to get parent_phone from the current user's student record
       const { data: currentStudent, error: currentError } = await supabase
         .from('students')
         .select('parent_phone')
         .eq('user_id', user?.id)
         .maybeSingle();
 
-      if (currentError || !currentStudent) return;
+      if (currentStudent?.parent_phone) {
+        parentPhone = currentStudent.parent_phone;
+      }
 
-      // Then fetch all students with this parent_phone
+      if (!parentPhone) {
+        console.log('No parent phone found for user');
+        return;
+      }
+
+      // Fetch all students with this parent_phone (siblings)
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('id, name, roll_no, class, section, photo_url, parent_phone')
-        .eq('parent_phone', currentStudent.parent_phone)
+        .eq('parent_phone', parentPhone)
         .eq('is_active', true)
-        .order('class')
-        .order('roll_no');
+        .order('class', { ascending: true })
+        .order('roll_no', { ascending: true });
 
       if (studentsError) throw studentsError;
 
       const students = studentsData || [];
       setAllStudents(students);
 
+      // Check if there's a saved selection in localStorage first
+      const savedStudentId = localStorage.getItem('selectedStudentId');
+      if (savedStudentId && students.length > 1) {
+        const savedStudent = students.find(s => s.id === savedStudentId);
+        if (savedStudent) {
+          setSelectedStudent(savedStudent);
+          return;
+        }
+      }
+
       // If only one student, auto-select them
       if (students.length === 1) {
         setSelectedStudent(students[0]);
       }
-      
-      // Check if there's a saved selection in localStorage
-      const savedStudentId = localStorage.getItem('selectedStudentId');
-      if (savedStudentId) {
-        const savedStudent = students.find(s => s.id === savedStudentId);
-        if (savedStudent) {
-          setSelectedStudent(savedStudent);
-        }
-      }
+      // If multiple students and no saved selection, leave selectedStudent null to trigger picker
     } catch (error) {
       console.error('Error fetching students:', error);
     }
