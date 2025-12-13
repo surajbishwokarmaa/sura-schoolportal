@@ -50,6 +50,40 @@ export function calculateOverallGPA(results: Array<{ gpa: number }>): number {
   return Math.round((totalGPA / results.length) * 100) / 100;
 }
 
+// Calculate grade from marks for a specific component (theory/practical)
+export function getGradeFromMarks(marks: number, fullMarks: number): string {
+  const percentage = (marks / fullMarks) * 100;
+  
+  if (percentage >= 90) return "A+";
+  if (percentage >= 80) return "A";
+  if (percentage >= 70) return "B+";
+  if (percentage >= 60) return "B";
+  if (percentage >= 50) return "C+";
+  if (percentage >= 40) return "C";
+  return "NG";
+}
+
+// Get final remarks based on percentage and pass status
+export function getFinalRemarks(percentage: number, allPassing: boolean): string {
+  if (!allPassing) return "Needs Improvement";
+  if (percentage >= 90) return "Outstanding";
+  if (percentage >= 80) return "Excellent";
+  if (percentage >= 70) return "Very Good";
+  if (percentage >= 60) return "Good";
+  if (percentage >= 50) return "Satisfactory";
+  if (percentage >= 40) return "Pass";
+  return "Needs Improvement";
+}
+
+// Get current academic year in single format (e.g., "2082")
+export function getCurrentAcademicYear(): string {
+  const now = new Date();
+  // Nepal academic year roughly follows Nepali calendar
+  // Approximate conversion: AD year - 57 for Nepali year
+  const nepaliYear = now.getFullYear() - 57 + (now.getMonth() >= 3 ? 1 : 0);
+  return nepaliYear.toString();
+}
+
 export function getGradeColor(grade: string): string {
   switch (grade) {
     case "A+":
