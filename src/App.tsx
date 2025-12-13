@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { StudentProvider } from "./contexts/StudentContext";
 import Index from "./pages/Index";
 import TeacherAuth from "./pages/auth/TeacherAuth";
 import AdminAuth from "./pages/auth/AdminAuth";
@@ -35,30 +36,32 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth/teacher" element={<TeacherAuth />} />
-            <Route path="/auth/admin" element={<AdminAuth />} />
-            <Route path="/student" element={<StudentDashboard />} />
-            <Route path="/student/marksheet" element={<ViewMarksheet />} />
-            <Route path="/student/notices" element={<StudentViewNotices />} />
-            <Route path="/student/staff" element={<StaffInfo />} />
-            <Route path="/teacher" element={<TeacherDashboard />} />
-            <Route path="/teacher/result-entry" element={<ResultEntry />} />
-            <Route path="/teacher/students" element={<ViewStudents />} />
-            <Route path="/teacher/results" element={<ViewResults />} />
-            <Route path="/teacher/notices" element={<TeacherViewNotices />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/classes" element={<ClassesManagement />} />
-            <Route path="/admin/teachers" element={<TeachersManagement />} />
-            <Route path="/admin/students" element={<StudentsManagement />} />
-            <Route path="/admin/subjects" element={<SubjectsManagement />} />
-            <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
-            <Route path="/admin/notices" element={<NoticesManagement />} />
-            <Route path="/admin/system-guide" element={<SystemGuide />} />
-            <Route path="/system-guide" element={<SystemGuide />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <StudentProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth/teacher" element={<TeacherAuth />} />
+              <Route path="/auth/admin" element={<AdminAuth />} />
+              <Route path="/student" element={<StudentDashboard />} />
+              <Route path="/student/marksheet" element={<ViewMarksheet />} />
+              <Route path="/student/notices" element={<StudentViewNotices />} />
+              <Route path="/student/staff" element={<StaffInfo />} />
+              <Route path="/teacher" element={<TeacherDashboard />} />
+              <Route path="/teacher/result-entry" element={<ResultEntry />} />
+              <Route path="/teacher/students" element={<ViewStudents />} />
+              <Route path="/teacher/results" element={<ViewResults />} />
+              <Route path="/teacher/notices" element={<TeacherViewNotices />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/classes" element={<ClassesManagement />} />
+              <Route path="/admin/teachers" element={<TeachersManagement />} />
+              <Route path="/admin/students" element={<StudentsManagement />} />
+              <Route path="/admin/subjects" element={<SubjectsManagement />} />
+              <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
+              <Route path="/admin/notices" element={<NoticesManagement />} />
+              <Route path="/admin/system-guide" element={<SystemGuide />} />
+              <Route path="/system-guide" element={<SystemGuide />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </StudentProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

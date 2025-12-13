@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStudent } from '@/contexts/StudentContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Download, GraduationCap, FileText, Clock } from 'lucide-react';
+import { ArrowLeft, Download, GraduationCap, Clock, Users } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { generateMarksheetPDF } from '@/lib/pdfGenerator';
-import { calculateOverallGPA, getGradeColor } from '@/lib/gradeCalculator';
+import { calculateOverallGPA, getGradeColor, getGradeFromMarks, getFinalRemarks, getCurrentAcademicYear } from '@/lib/gradeCalculator';
 import { useToast } from '@/hooks/use-toast';
 
 interface StudentData {
@@ -42,10 +43,14 @@ interface DisplayResult extends Result {
   theoryFull: number;
   practicalFull: number;
   totalFull: number;
+  theoryGrade: string;
+  practicalGrade: string;
+  totalGrade: string;
 }
 
 const ViewMarksheet = () => {
   const { user, userRole } = useAuth();
+  const { selectedStudent, allStudents, hasMultipleStudents, setSelectedStudent } = useStudent();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
@@ -55,14 +60,37 @@ const ViewMarksheet = () => {
   const [allSubjectsComplete, setAllSubjectsComplete] = useState<boolean>(false);
   const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
   const [loading, setLoading] = useState(true);
+  const [showStudentPicker, setShowStudentPicker] = useState(false);
+
+  const academicYear = getCurrentAcademicYear();
 
   useEffect(() => {
     if (!user || userRole !== 'student') {
       navigate('/auth/student');
       return;
     }
-    fetchStudentData();
-  }, [user, userRole]);
+    
+    // If multiple students and none selected, show picker
+    if (hasMultipleStudents && !selectedStudent) {
+      setShowStudentPicker(true);
+      setLoading(false);
+      return;
+    }
+    
+    if (selectedStudent) {
+      setStudentData({
+        id: selectedStudent.id,
+        name: selectedStudent.name,
+        roll_no: selectedStudent.roll_no,
+        class: selectedStudent.class,
+        section: selectedStudent.section,
+        photo_url: selectedStudent.photo_url
+      });
+      setLoading(false);
+    } else {
+      fetchStudentData();
+    }
+  }, [user, userRole, selectedStudent, hasMultipleStudents]);
 
   useEffect(() => {
     if (studentData) {
@@ -150,6 +178,17 @@ const ViewMarksheet = () => {
         );
 
         if (existingResult) {
+          // Calculate grades for each component
+          const theoryGrade = existingResult.theory_marks !== null 
+            ? getGradeFromMarks(existingResult.theory_marks, subject.theory_full_marks)
+            : '-';
+          const practicalGrade = existingResult.practical_marks !== null
+            ? getGradeFromMarks(existingResult.practical_marks, subject.practical_full_marks)
+            : '-';
+          const totalGrade = existingResult.total_marks !== null
+            ? getGradeFromMarks(existingResult.total_marks, subject.total_marks)
+            : '-';
+
           return {
             subject: subject.name,
             theory_marks: existingResult.theory_marks,
@@ -160,7 +199,10 @@ const ViewMarksheet = () => {
             isPending: false,
             theoryFull: subject.theory_full_marks,
             practicalFull: subject.practical_full_marks,
-            totalFull: subject.total_marks
+            totalFull: subject.total_marks,
+            theoryGrade,
+            practicalGrade,
+            totalGrade
           };
         } else {
           return {
@@ -173,7 +215,10 @@ const ViewMarksheet = () => {
             isPending: true,
             theoryFull: subject.theory_full_marks,
             practicalFull: subject.practical_full_marks,
-            totalFull: subject.total_marks
+            totalFull: subject.total_marks,
+            theoryGrade: '-',
+            practicalGrade: '-',
+            totalGrade: '-'
           };
         }
       });
@@ -195,16 +240,25 @@ const ViewMarksheet = () => {
   };
 
   const calculateOverallMetrics = () => {
+    // Only calculate if ALL subjects are complete
+    if (!allSubjectsComplete) {
+      return { gpa: 0, totalMarks: 0, maxMarks: 0, percentage: 0, remarks: '' };
+    }
+
     const completedResults = displayResults.filter(r => !r.isPending);
-    if (completedResults.length === 0) return { gpa: 0, totalMarks: 0, maxMarks: 0, percentage: 0 };
+    if (completedResults.length === 0) return { gpa: 0, totalMarks: 0, maxMarks: 0, percentage: 0, remarks: '' };
     
     const totalMarks = completedResults.reduce((sum, r) => sum + (r.total_marks || 0), 0);
     const maxMarks = completedResults.reduce((sum, r) => sum + r.totalFull, 0);
     const percentage = maxMarks > 0 ? (totalMarks / maxMarks) * 100 : 0;
     const validResults = completedResults.filter(r => r.gpa !== null).map(r => ({ gpa: r.gpa as number }));
     const gpa = validResults.length > 0 ? calculateOverallGPA(validResults) : 0;
+    
+    // Check if all subjects are passing
+    const allPassing = completedResults.every(r => r.grade !== 'NG');
+    const remarks = getFinalRemarks(percentage, allPassing);
 
-    return { gpa, totalMarks, maxMarks, percentage };
+    return { gpa, totalMarks, maxMarks, percentage, remarks };
   };
 
   const getTermDisplay = () => {
@@ -247,15 +301,20 @@ const ViewMarksheet = () => {
         gpa: r.gpa || 0
       })),
       term: getTermDisplay(),
-      academicYear: '2081-2082',
+      academicYear: academicYear,
       overallGPA: metrics.gpa,
       totalMarks: metrics.totalMarks,
       percentage: metrics.percentage,
       schoolInfo: {
-        name: 'School Management System',
+        name: 'Buddha Deep English Boarding School',
         address: 'Kathmandu, Nepal'
       }
     });
+  };
+
+  const handleStudentSelect = (student: typeof selectedStudent) => {
+    setSelectedStudent(student);
+    setShowStudentPicker(false);
   };
 
   const metrics = calculateOverallMetrics();
@@ -266,14 +325,73 @@ const ViewMarksheet = () => {
     return <LoadingSpinner fullScreen />;
   }
 
+  // Show student picker for parents with multiple children
+  if (showStudentPicker && hasMultipleStudents) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+        <div className="container mx-auto px-4 py-8">
+          <Button variant="ghost" onClick={() => navigate('/student')} className="mb-6">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+              <Users className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Choose Student</h1>
+            <p className="text-muted-foreground">Select which student's marksheet to view</p>
+          </div>
+
+          <div className="max-w-2xl mx-auto grid gap-4">
+            {allStudents.map((student) => (
+              <Card
+                key={student.id}
+                className="p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/50"
+                onClick={() => handleStudentSelect(student)}
+              >
+                <div className="flex items-center gap-4 sm:gap-6">
+                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold">
+                    {student.name.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold">{student.name}</h3>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                      <span>Roll: {student.roll_no}</span>
+                      <span>Class: {student.class}</span>
+                      <span>Section: {student.section}</span>
+                    </div>
+                  </div>
+                  <GraduationCap className="w-6 h-6 text-primary" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
       <div className="container mx-auto px-4 py-6 sm:py-8">
         <div className="no-print mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <Button variant="ghost" onClick={() => navigate('/student')} className="self-start">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => navigate('/student')} className="self-start">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+            {hasMultipleStudents && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowStudentPicker(true)}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Switch Student
+              </Button>
+            )}
+          </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
             <div className="w-full sm:w-48">
               <Select value={selectedTerm} onValueChange={(v: any) => setSelectedTerm(v)}>
@@ -303,12 +421,12 @@ const ViewMarksheet = () => {
                 <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
               </div>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">School Management System</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Buddha Deep English Boarding School</h1>
             <p className="text-sm sm:text-base text-muted-foreground mb-1">Kathmandu, Nepal</p>
             <h2 className="text-lg sm:text-xl font-semibold mt-4 bg-muted py-2 px-4 rounded">
               Student Marksheet - {getTermDisplay()}
             </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2">Academic Year: 2081-2082</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2">Academic Year: {academicYear}</p>
           </div>
 
           {/* Student Info */}
@@ -351,7 +469,7 @@ const ViewMarksheet = () => {
                 <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 <div>
                   <p className="text-amber-800 dark:text-amber-200 font-medium">
-                    Results are not ready yet
+                    Result will be published after all subject marks are submitted
                   </p>
                   <p className="text-amber-700 dark:text-amber-300 text-sm">
                     {completedCount} of {totalSubjects} subjects completed. Some subject teachers have not submitted marks.
@@ -361,7 +479,7 @@ const ViewMarksheet = () => {
             </div>
           )}
 
-          {/* Results Table - Show all subjects with pending status */}
+          {/* Results Table - Show all subjects with GRADES instead of numbers */}
           {displayResults.length > 0 ? (
             <>
               <div className="overflow-x-auto mb-6 sm:mb-8">
@@ -370,11 +488,10 @@ const ViewMarksheet = () => {
                     <tr className="bg-muted">
                       <th className="border border-border p-2 sm:p-3 text-left">S.N.</th>
                       <th className="border border-border p-2 sm:p-3 text-left">Subject</th>
-                      <th className="border border-border p-2 sm:p-3 text-center">Theory</th>
-                      <th className="border border-border p-2 sm:p-3 text-center">Practical</th>
-                      <th className="border border-border p-2 sm:p-3 text-center">Total</th>
-                      <th className="border border-border p-2 sm:p-3 text-center">Grade</th>
-                      <th className="border border-border p-2 sm:p-3 text-center">GPA</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Theory Grade</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Practical Grade</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Total Grade</th>
+                      <th className="border border-border p-2 sm:p-3 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -383,39 +500,25 @@ const ViewMarksheet = () => {
                         <td className="border border-border p-2 sm:p-3">{index + 1}</td>
                         <td className="border border-border p-2 sm:p-3 capitalize">
                           {result.subject}
-                          {result.isPending && (
-                            <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Pending)</span>
-                          )}
+                        </td>
+                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${result.isPending ? 'text-muted-foreground' : getGradeColor(result.theoryGrade)}`}>
+                          {result.isPending ? '-' : result.theoryGrade}
+                        </td>
+                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${result.isPending ? 'text-muted-foreground' : getGradeColor(result.practicalGrade)}`}>
+                          {result.isPending ? '-' : result.practicalGrade}
+                        </td>
+                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${result.isPending ? 'text-muted-foreground' : getGradeColor(result.totalGrade)}`}>
+                          {result.isPending ? '-' : result.totalGrade}
                         </td>
                         <td className="border border-border p-2 sm:p-3 text-center">
                           {result.isPending ? (
-                            <span className="text-muted-foreground">-</span>
+                            <span className="text-amber-600 dark:text-amber-400 text-xs font-medium px-2 py-1 bg-amber-100 dark:bg-amber-900/30 rounded">
+                              Pending
+                            </span>
                           ) : (
-                            result.theory_marks ?? '-'
-                          )}
-                        </td>
-                        <td className="border border-border p-2 sm:p-3 text-center">
-                          {result.isPending ? (
-                            <span className="text-muted-foreground">-</span>
-                          ) : (
-                            result.practical_marks ?? '-'
-                          )}
-                        </td>
-                        <td className="border border-border p-2 sm:p-3 text-center font-semibold">
-                          {result.isPending ? (
-                            <span className="text-muted-foreground">-</span>
-                          ) : (
-                            result.total_marks ?? '-'
-                          )}
-                        </td>
-                        <td className={`border border-border p-2 sm:p-3 text-center font-bold ${result.isPending ? 'text-muted-foreground' : getGradeColor(result.grade || '')}`}>
-                          {result.isPending ? '-' : result.grade || '-'}
-                        </td>
-                        <td className="border border-border p-2 sm:p-3 text-center">
-                          {result.isPending ? (
-                            <span className="text-muted-foreground">-</span>
-                          ) : (
-                            result.gpa?.toFixed(1) ?? '-'
+                            <span className="text-green-600 dark:text-green-400 text-xs font-medium px-2 py-1 bg-green-100 dark:bg-green-900/30 rounded">
+                              Completed
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -426,11 +529,7 @@ const ViewMarksheet = () => {
 
               {/* Summary - Only shown when all subjects are complete */}
               {allSubjectsComplete ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6 bg-muted/50 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Marks Obtained</p>
-                    <p className="text-2xl sm:text-3xl font-bold">{metrics.totalMarks} / {metrics.maxMarks}</p>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-6 p-4 sm:p-6 bg-muted/50 rounded-lg">
                   <div className="text-center">
                     <p className="text-xs sm:text-sm text-muted-foreground mb-1">Overall GPA</p>
                     <p className="text-2xl sm:text-3xl font-bold text-primary">{metrics.gpa.toFixed(2)}</p>
@@ -439,24 +538,32 @@ const ViewMarksheet = () => {
                     <p className="text-xs sm:text-sm text-muted-foreground mb-1">Percentage</p>
                     <p className="text-2xl sm:text-3xl font-bold">{metrics.percentage.toFixed(2)}%</p>
                   </div>
+                  <div className="text-center">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Final Grade</p>
+                    <p className={`text-2xl sm:text-3xl font-bold ${getGradeColor(getGradeFromMarks(metrics.totalMarks, metrics.maxMarks))}`}>
+                      {getGradeFromMarks(metrics.totalMarks, metrics.maxMarks)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Remarks</p>
+                    <p className="text-xl sm:text-2xl font-bold text-secondary">{metrics.remarks}</p>
+                  </div>
                 </div>
               ) : (
                 <div className="p-4 sm:p-6 bg-muted/30 rounded-lg text-center">
                   <p className="text-muted-foreground">
-                    Final results (GPA, Percentage) will be displayed once all subject marks are submitted.
+                    GPA, Percentage, Grade, and Remarks will be displayed after all subjects are completed.
                   </p>
                 </div>
               )}
             </>
-          ) : totalSubjects === 0 ? (
-            <div className="text-center py-8 sm:py-12">
-              <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-base sm:text-lg text-muted-foreground">No subjects configured for your class</p>
-            </div>
           ) : (
-            <div className="text-center py-8 sm:py-12">
-              <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-base sm:text-lg text-muted-foreground">No results available for this term</p>
+            <div className="text-center py-12">
+              <GraduationCap className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No Subjects Found</h3>
+              <p className="text-muted-foreground">
+                No subjects have been configured for your class yet.
+              </p>
             </div>
           )}
         </Card>

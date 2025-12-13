@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStudent } from '@/contexts/StudentContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, TrendingUp, Download, Users, Bell, Calendar } from 'lucide-react';
+import { FileText, TrendingUp, Download, Users, Bell, Calendar, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
@@ -24,11 +26,13 @@ interface StudentData {
 
 const StudentDashboard = () => {
   const { user, userRole } = useAuth();
+  const { selectedStudent, allStudents, hasMultipleStudents, setSelectedStudent, clearStudentSelection } = useStudent();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [student, setStudent] = useState<StudentData | null>(null);
   const [noticesCount, setNoticesCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showStudentPicker, setShowStudentPicker] = useState(false);
   const nepaliDate = getCurrentNepaliDate();
 
   useEffect(() => {
@@ -37,9 +41,20 @@ const StudentDashboard = () => {
       return;
     }
 
-    fetchStudentData();
+    // If multiple students and none selected, show picker
+    if (hasMultipleStudents && !selectedStudent) {
+      setShowStudentPicker(true);
+      setLoading(false);
+      return;
+    }
+
+    if (selectedStudent) {
+      fetchStudentDataById(selectedStudent.id);
+    } else {
+      fetchStudentData();
+    }
     fetchNoticesCount();
-  }, [user, userRole, navigate]);
+  }, [user, userRole, navigate, selectedStudent, hasMultipleStudents]);
 
   const fetchStudentData = async () => {
     try {
@@ -72,6 +87,26 @@ const StudentDashboard = () => {
     }
   };
 
+  const fetchStudentDataById = async (studentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', studentId)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        setStudent(data);
+      }
+    } catch (error) {
+      console.error('Error fetching student data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchNoticesCount = async () => {
     try {
       const { count } = await supabase
@@ -83,6 +118,16 @@ const StudentDashboard = () => {
     } catch (error) {
       console.error('Error fetching notices count:', error);
     }
+  };
+
+  const handleStudentSelect = (student: typeof selectedStudent) => {
+    setSelectedStudent(student);
+    setShowStudentPicker(false);
+  };
+
+  const handleSwitchStudent = () => {
+    clearStudentSelection();
+    setShowStudentPicker(true);
   };
 
   const quickActions = [
@@ -120,16 +165,68 @@ const StudentDashboard = () => {
     return <LoadingSpinner fullScreen />;
   }
 
+  // Show student picker for parents with multiple children
+  if (showStudentPicker && hasMultipleStudents) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center mb-8 animate-in fade-in duration-700">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+              <Users className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Choose Student</h1>
+            <p className="text-muted-foreground">Select which student's account to access</p>
+          </div>
+
+          <div className="max-w-2xl mx-auto grid gap-4">
+            {allStudents.map((s) => (
+              <Card
+                key={s.id}
+                className="p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 animate-fade-in"
+                onClick={() => handleStudentSelect(s)}
+              >
+                <div className="flex items-center gap-4 sm:gap-6">
+                  <Avatar className="w-16 h-16 sm:w-20 sm:h-20 border-2 border-primary/20">
+                    <AvatarImage src={s.photo_url || ''} />
+                    <AvatarFallback className="text-xl bg-primary/10">
+                      {s.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <h3 className="text-lg sm:text-xl font-semibold mb-1">{s.name}</h3>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                      <span>Roll: {s.roll_no}</span>
+                      <span>Class: {s.class}</span>
+                      <span>Section: {s.section}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <DashboardLayout
       title="Student Dashboard"
       subtitle="View your academic performance"
     >
       {/* Date Display */}
-      <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-        <Calendar className="w-4 h-4" />
-        <span>{nepaliDate.nepali}</span>
-        <span className="text-xs">({nepaliDate.english})</span>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Calendar className="w-4 h-4" />
+          <span>{nepaliDate.nepali}</span>
+          <span className="text-xs">({nepaliDate.english})</span>
+        </div>
+        {hasMultipleStudents && (
+          <Button variant="outline" size="sm" onClick={handleSwitchStudent}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Switch Student
+          </Button>
+        )}
       </div>
 
       {/* Student Profile Card */}
