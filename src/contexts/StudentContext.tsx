@@ -43,7 +43,7 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
   const fetchStudents = async () => {
     setIsLoading(true);
     try {
-      // First get the student record linked to this user
+      // First get the student record linked to this user to find their parent_phone
       const { data: currentStudent, error: currentError } = await supabase
         .from('students')
         .select('id, parent_phone')
@@ -62,7 +62,10 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Fetch ALL students with this parent_phone (siblings)
+      console.log('Current student parent_phone:', currentStudent.parent_phone);
+
+      // Fetch ALL students with this parent_phone (siblings) - bypassing RLS using service role via edge function would be ideal
+      // For now, we fetch directly - RLS should allow this if properly configured
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('id, name, roll_no, class, section, photo_url, parent_phone')
@@ -72,13 +75,23 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
         .order('roll_no', { ascending: true });
 
       if (studentsError) {
-        console.error('Error fetching students:', studentsError);
+        console.error('Error fetching siblings:', studentsError);
+        // Fallback: if RLS blocks sibling query, at least show current student
+        setAllStudents([{
+          id: currentStudent.id,
+          name: '',
+          roll_no: '',
+          class: '',
+          section: '',
+          photo_url: null,
+          parent_phone: currentStudent.parent_phone
+        }]);
         setIsLoading(false);
         return;
       }
 
       const students = studentsData || [];
-      console.log('Found students for parent:', students.length);
+      console.log('Found students for parent phone:', students.length, students);
       setAllStudents(students);
 
       // Check localStorage for saved selection first
@@ -87,15 +100,17 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
       if (students.length === 1) {
         // Only one student - auto-select
         setSelectedStudent(students[0]);
-      } else if (students.length > 1 && savedStudentId) {
+      } else if (students.length > 1) {
         // Multiple students - check for saved selection
-        const savedStudent = students.find(s => s.id === savedStudentId);
-        if (savedStudent) {
-          setSelectedStudent(savedStudent);
+        if (savedStudentId) {
+          const savedStudent = students.find(s => s.id === savedStudentId);
+          if (savedStudent) {
+            setSelectedStudent(savedStudent);
+          }
+          // If saved student not found in list, leave null to trigger picker
         }
-        // If no valid saved selection, leave null to trigger picker
+        // If no saved selection, selectedStudent stays null to trigger picker
       }
-      // If multiple students and no saved selection, selectedStudent stays null
     } catch (error) {
       console.error('Error in fetchStudents:', error);
     } finally {
