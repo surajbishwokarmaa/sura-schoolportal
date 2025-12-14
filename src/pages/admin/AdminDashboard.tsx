@@ -180,14 +180,10 @@ const AdminDashboard = () => {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-base sm:text-lg mb-2">System Information</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Academic Year:</span>
-                <span className="ml-2 font-medium">2081-2082</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Current Term:</span>
-                <span className="ml-2 font-medium">First Term</span>
+                <span className="ml-2 font-medium">2082</span>
               </div>
               <div>
                 <span className="text-muted-foreground">System Status:</span>

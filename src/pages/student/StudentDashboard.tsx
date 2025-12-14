@@ -26,13 +26,12 @@ interface StudentData {
 
 const StudentDashboard = () => {
   const { user, userRole } = useAuth();
-  const { selectedStudent, allStudents, hasMultipleStudents, setSelectedStudent, clearStudentSelection } = useStudent();
+  const { selectedStudent, allStudents, hasMultipleStudents, isLoading: studentContextLoading, setSelectedStudent, clearStudentSelection } = useStudent();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [student, setStudent] = useState<StudentData | null>(null);
   const [noticesCount, setNoticesCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showStudentPicker, setShowStudentPicker] = useState(false);
   const nepaliDate = getCurrentNepaliDate();
 
   useEffect(() => {
@@ -41,20 +40,26 @@ const StudentDashboard = () => {
       return;
     }
 
-    // If multiple students and none selected, show picker
+    // Wait for student context to finish loading
+    if (studentContextLoading) {
+      return;
+    }
+
+    // If multiple students and none selected, just show the picker (no additional loading needed)
     if (hasMultipleStudents && !selectedStudent) {
-      setShowStudentPicker(true);
       setLoading(false);
       return;
     }
 
     if (selectedStudent) {
       fetchStudentDataById(selectedStudent.id);
+    } else if (allStudents.length === 1) {
+      fetchStudentDataById(allStudents[0].id);
     } else {
       fetchStudentData();
     }
     fetchNoticesCount();
-  }, [user, userRole, navigate, selectedStudent, hasMultipleStudents]);
+  }, [user, userRole, navigate, selectedStudent, hasMultipleStudents, studentContextLoading, allStudents]);
 
   const fetchStudentData = async () => {
     try {
@@ -120,14 +125,12 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleStudentSelect = (student: typeof selectedStudent) => {
-    setSelectedStudent(student);
-    setShowStudentPicker(false);
+  const handleStudentSelect = (studentToSelect: typeof selectedStudent) => {
+    setSelectedStudent(studentToSelect);
   };
 
   const handleSwitchStudent = () => {
     clearStudentSelection();
-    setShowStudentPicker(true);
   };
 
   const quickActions = [
@@ -161,12 +164,12 @@ const StudentDashboard = () => {
     }
   ];
 
-  if (loading) {
+  if (loading || studentContextLoading) {
     return <LoadingSpinner fullScreen />;
   }
 
   // Show student picker for parents with multiple children
-  if (showStudentPicker && hasMultipleStudents) {
+  if (hasMultipleStudents && !selectedStudent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
         <div className="container mx-auto px-4 py-8">

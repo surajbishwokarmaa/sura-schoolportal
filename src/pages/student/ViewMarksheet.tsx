@@ -50,7 +50,7 @@ interface DisplayResult extends Result {
 
 const ViewMarksheet = () => {
   const { user, userRole } = useAuth();
-  const { selectedStudent, allStudents, hasMultipleStudents, setSelectedStudent } = useStudent();
+  const { selectedStudent, allStudents, hasMultipleStudents, isLoading: studentContextLoading, setSelectedStudent, clearStudentSelection } = useStudent();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
@@ -60,7 +60,6 @@ const ViewMarksheet = () => {
   const [allSubjectsComplete, setAllSubjectsComplete] = useState<boolean>(false);
   const [selectedTerm, setSelectedTerm] = useState<'first_term' | 'second_term' | 'third_term' | 'final_term'>('first_term');
   const [loading, setLoading] = useState(true);
-  const [showStudentPicker, setShowStudentPicker] = useState(false);
 
   const academicYear = getCurrentAcademicYear();
 
@@ -70,9 +69,13 @@ const ViewMarksheet = () => {
       return;
     }
     
-    // If multiple students and none selected, show picker
+    // Wait for context to finish loading
+    if (studentContextLoading) {
+      return;
+    }
+    
+    // If multiple students and none selected, just show picker
     if (hasMultipleStudents && !selectedStudent) {
-      setShowStudentPicker(true);
       setLoading(false);
       return;
     }
@@ -87,10 +90,21 @@ const ViewMarksheet = () => {
         photo_url: selectedStudent.photo_url
       });
       setLoading(false);
+    } else if (allStudents.length === 1) {
+      const student = allStudents[0];
+      setStudentData({
+        id: student.id,
+        name: student.name,
+        roll_no: student.roll_no,
+        class: student.class,
+        section: student.section,
+        photo_url: student.photo_url
+      });
+      setLoading(false);
     } else {
       fetchStudentData();
     }
-  }, [user, userRole, selectedStudent, hasMultipleStudents]);
+  }, [user, userRole, selectedStudent, hasMultipleStudents, studentContextLoading, allStudents]);
 
   useEffect(() => {
     if (studentData) {
@@ -314,19 +328,22 @@ const ViewMarksheet = () => {
 
   const handleStudentSelect = (student: typeof selectedStudent) => {
     setSelectedStudent(student);
-    setShowStudentPicker(false);
+  };
+
+  const handleSwitchStudent = () => {
+    clearStudentSelection();
   };
 
   const metrics = calculateOverallMetrics();
   const completedCount = displayResults.filter(r => !r.isPending).length;
   const totalSubjects = allSubjects.length;
 
-  if (loading) {
+  if (loading || studentContextLoading) {
     return <LoadingSpinner fullScreen />;
   }
 
   // Show student picker for parents with multiple children
-  if (showStudentPicker && hasMultipleStudents) {
+  if (hasMultipleStudents && !selectedStudent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
         <div className="container mx-auto px-4 py-8">
@@ -385,7 +402,7 @@ const ViewMarksheet = () => {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setShowStudentPicker(true)}
+                onClick={handleSwitchStudent}
               >
                 <Users className="w-4 h-4 mr-2" />
                 Switch Student
