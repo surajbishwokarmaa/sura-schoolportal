@@ -10,6 +10,7 @@ interface StudentInfo {
   section: string;
   photo_url: string | null;
   parent_phone: string;
+  graduation_status?: string;
 }
 
 interface StudentContextType {
@@ -64,11 +65,10 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
 
       console.log('Current student parent_phone:', currentStudent.parent_phone);
 
-      // Fetch ALL students with this parent_phone (siblings) - bypassing RLS using service role via edge function would be ideal
-      // For now, we fetch directly - RLS should allow this if properly configured
+      // Fetch ALL students with this parent_phone (siblings)
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, name, roll_no, class, section, photo_url, parent_phone')
+        .select('id, name, roll_no, class, section, photo_url, parent_phone, graduation_status')
         .eq('parent_phone', currentStudent.parent_phone)
         .eq('is_active', true)
         .order('class', { ascending: true })

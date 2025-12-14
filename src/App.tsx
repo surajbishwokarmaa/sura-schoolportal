@@ -15,6 +15,7 @@ import StudentsManagement from "./pages/admin/StudentsManagement";
 import SubjectsManagement from "./pages/admin/SubjectsManagement";
 import BulkUploadManagement from "./pages/admin/BulkUploadManagement";
 import NoticesManagement from "./pages/admin/NoticesManagement";
+import ClassPromotion from "./pages/admin/ClassPromotion";
 import SystemGuide from "./pages/admin/SystemGuide";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ViewMarksheet from "./pages/student/ViewMarksheet";
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/admin/subjects" element={<SubjectsManagement />} />
               <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
               <Route path="/admin/notices" element={<NoticesManagement />} />
+              <Route path="/admin/promotion" element={<ClassPromotion />} />
               <Route path="/admin/system-guide" element={<SystemGuide />} />
               <Route path="/system-guide" element={<SystemGuide />} />
               <Route path="*" element={<NotFound />} />

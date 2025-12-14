@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { GraduationCap, Users } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -14,6 +15,7 @@ interface StudentInfo {
   class: string;
   section: string;
   photo_url: string | null;
+  graduation_status?: string;
 }
 
 interface StudentSelectorProps {
@@ -33,7 +35,7 @@ const StudentSelector = ({ parentPhone, onSelect }: StudentSelectorProps) => {
     try {
       const { data, error } = await supabase
         .from('students')
-        .select('id, name, roll_no, class, section, photo_url')
+        .select('id, name, roll_no, class, section, photo_url, graduation_status')
         .eq('parent_phone', parentPhone)
         .eq('is_active', true)
         .order('class')
@@ -80,7 +82,14 @@ const StudentSelector = ({ parentPhone, onSelect }: StudentSelectorProps) => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h3 className="text-lg sm:text-xl font-semibold mb-1">{student.name}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg sm:text-xl font-semibold">{student.name}</h3>
+                    {student.graduation_status === 'graduated' && (
+                      <Badge variant="outline" className="text-amber-600 border-amber-600">
+                        Graduated
+                      </Badge>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span>Roll: {student.roll_no}</span>
                     <span>Class: {student.class}</span>

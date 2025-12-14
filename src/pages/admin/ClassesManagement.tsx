@@ -22,6 +22,7 @@ interface Class {
   name: string;
   sections: string[];
   subjects: any;
+  school_level: number;
 }
 
 const ClassesManagement = () => {
@@ -33,6 +34,7 @@ const ClassesManagement = () => {
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [className, setClassName] = useState('');
   const [sections, setSections] = useState('');
+  const [schoolLevel, setSchoolLevel] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -71,7 +73,8 @@ const ClassesManagement = () => {
         .from('classes')
         .update({
           name: className,
-          sections: sectionsArray
+          sections: sectionsArray,
+          school_level: schoolLevel
         })
         .eq('id', editingClass.id);
 
@@ -95,7 +98,8 @@ const ClassesManagement = () => {
         .insert({
           name: className,
           sections: sectionsArray,
-          subjects: {}
+          subjects: {},
+          school_level: schoolLevel
         });
 
       if (error) {
@@ -121,6 +125,7 @@ const ClassesManagement = () => {
     setEditingClass(cls);
     setClassName(cls.name);
     setSections(cls.sections.join(', '));
+    setSchoolLevel(cls.school_level || 1);
     setIsDialogOpen(true);
   };
 
@@ -152,8 +157,20 @@ const ClassesManagement = () => {
   const resetForm = () => {
     setClassName('');
     setSections('');
+    setSchoolLevel(1);
     setEditingClass(null);
     setIsDialogOpen(false);
+  };
+
+  // Check if class is terminal (Grade 10 or 12)
+  const isTerminalClass = (className: string) => {
+    const name = className.toLowerCase();
+    return name.includes('10') || name.includes('12');
+  };
+
+  // Get school level label
+  const getSchoolLevelLabel = (level: number) => {
+    return level === 1 ? 'Primary-Secondary (Nursery-10)' : 'Higher Secondary (11-12)';
   };
 
   if (loading) {
@@ -219,6 +236,21 @@ const ClassesManagement = () => {
                     Enter section names separated by commas
                   </p>
                 </div>
+                <div>
+                  <Label htmlFor="schoolLevel">School Level</Label>
+                  <select
+                    id="schoolLevel"
+                    value={schoolLevel}
+                    onChange={(e) => setSchoolLevel(Number(e.target.value))}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value={1}>Level 1: Primary-Secondary (Nursery - Grade 10)</option>
+                    <option value={2}>Level 2: Higher Secondary (Grade 11 - 12)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Grade 10 and 12 are terminal classes (students graduate, no auto-promotion)
+                  </p>
+                </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={isLoading}>
                     {isLoading ? 'Saving...' : editingClass ? 'Update' : 'Create'}
@@ -247,6 +279,14 @@ const ClassesManagement = () => {
                     </p>
                   </div>
                 </div>
+                <Badge variant={cls.school_level === 2 ? 'default' : 'secondary'} className="mb-2">
+                  {cls.school_level === 2 ? 'Higher Secondary' : 'Primary-Secondary'}
+                </Badge>
+                {isTerminalClass(cls.name) && (
+                  <Badge variant="outline" className="ml-2 mb-2 text-amber-600 border-amber-600">
+                    Terminal (Graduation)
+                  </Badge>
+                )}
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" onClick={() => handleEdit(cls)}>
                     <Edit2 className="w-4 h-4" />
