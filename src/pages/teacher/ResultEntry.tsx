@@ -380,7 +380,7 @@ const ResultEntry = () => {
       const { error } = await supabase
         .from('results')
         .upsert(resultsToInsert, { 
-          onConflict: 'student_id,subject,term',
+          onConflict: 'student_id,subject,term,class',
           ignoreDuplicates: false 
         });
 
