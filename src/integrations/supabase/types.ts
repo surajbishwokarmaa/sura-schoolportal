@@ -540,6 +540,7 @@ export type Database = {
           grade: string
         }[]
       }
+      get_current_teacher_id: { Args: never; Returns: string }
       get_next_class: { Args: { current_class: string }; Returns: string }
       get_student_login_info: {
         Args: { parent_phone_input: string }
@@ -565,6 +566,10 @@ export type Database = {
         Returns: boolean
       }
       is_terminal_class: { Args: { class_name: string }; Returns: boolean }
+      teacher_can_manage_result: {
+        Args: { _class: string; _subject: string; _teacher_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       graduation_status: "active" | "graduated" | "transferred" | "dropped"
