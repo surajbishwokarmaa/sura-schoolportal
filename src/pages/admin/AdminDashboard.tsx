@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, ArrowUpCircle, KeyRound } from 'lucide-react';
+import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, ArrowUpCircle, KeyRound, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -104,6 +104,13 @@ const AdminDashboard = () => {
       icon: KeyRound,
       path: '/admin/password-requests',
       color: 'from-red-500 to-red-600'
+    },
+    {
+      title: 'Change Password',
+      description: 'Update your admin password',
+      icon: Lock,
+      path: '/admin/change-password',
+      color: 'from-slate-500 to-slate-600'
     },
     {
       title: 'System Guide',

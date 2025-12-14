@@ -388,15 +388,32 @@ const ResultEntry = () => {
 
       toast({
         title: 'Success',
-        description: 'Results saved successfully',
+        description: isEditMode ? 'Results updated successfully' : 'Results added successfully',
       });
 
+      // Update submitted terms list
+      if (!submittedTerms.includes(selectedTerm)) {
+        setSubmittedTerms(prev => [...prev, selectedTerm]);
+      }
+      setIsEditMode(true);
+      
       navigate('/teacher');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving results:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to save results. Please try again.';
+      if (error.code === '42501') {
+        errorMessage = 'Permission denied. Please ensure you are assigned to this class and subject.';
+      } else if (error.code === '23505') {
+        errorMessage = 'Results already exist for this term. Try editing instead.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: 'Failed to save results',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
