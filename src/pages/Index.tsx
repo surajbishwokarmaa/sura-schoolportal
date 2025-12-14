@@ -101,6 +101,11 @@ const Index = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Developer Credit */}
+        <div className="text-center mb-4">
+          <p className="text-xs text-muted-foreground">Developed by Class 10 Lotus Student</p>
+        </div>
+
         <div className="text-center mb-12 animate-in fade-in duration-700">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="relative">
@@ -158,6 +163,17 @@ const Index = () => {
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 {loading ? 'Logging in...' : 'Login as Student'}
               </Button>
+              
+              <div className="text-center mt-4">
+                <Button 
+                  type="button" 
+                  variant="link" 
+                  className="text-sm text-muted-foreground"
+                  onClick={() => navigate('/forgot-password')}
+                >
+                  Forgot Password?
+                </Button>
+              </div>
             </form>
           </Card>
 

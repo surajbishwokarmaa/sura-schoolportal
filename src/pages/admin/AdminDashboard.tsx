@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, ArrowUpCircle } from 'lucide-react';
+import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, ArrowUpCircle, KeyRound } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -97,6 +97,13 @@ const AdminDashboard = () => {
       icon: ArrowUpCircle,
       path: '/admin/promotion',
       color: 'from-amber-500 to-amber-600'
+    },
+    {
+      title: 'Password Requests',
+      description: 'Review student password reset requests',
+      icon: KeyRound,
+      path: '/admin/password-requests',
+      color: 'from-red-500 to-red-600'
     },
     {
       title: 'System Guide',

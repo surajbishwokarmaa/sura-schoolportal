@@ -10,12 +10,18 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { z } from 'zod';
 
+// Fixed admin email - cannot be changed
+const ADMIN_EMAIL = 'buddhadeep2057@gmail.com';
+
 const adminLoginSchema = z.object({
   email: z.string()
     .trim()
     .min(1, 'Email is required')
     .email('Please enter a valid email address')
-    .max(255, 'Email must be less than 255 characters'),
+    .max(255, 'Email must be less than 255 characters')
+    .refine((email) => email.toLowerCase() === ADMIN_EMAIL.toLowerCase(), {
+      message: 'Invalid admin email. Only the official admin email is allowed.',
+    }),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .max(128, 'Password must be less than 128 characters'),
@@ -98,7 +104,7 @@ const AdminAuth = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@school.edu.np"
+                    placeholder={ADMIN_EMAIL}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-9 sm:pl-10 text-base"
