@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, AlertCircle, User } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, User, Edit, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
 
 interface Student {
@@ -57,6 +58,8 @@ const ResultEntry = () => {
   const [loading, setLoading] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [currentSubject, setCurrentSubject] = useState<SubjectData | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [submittedTerms, setSubmittedTerms] = useState<string[]>([]);
 
   // Get sections for selected class from database
   const availableSections = classes.find(c => c.name === selectedClass)?.sections || [];
@@ -76,6 +79,8 @@ const ResultEntry = () => {
     setSelectedSubject('');
     setStudents([]);
     setResults([]);
+    setSubmittedTerms([]);
+    setIsEditMode(false);
     
     if (selectedClass) {
       const classData = classes.find(c => c.name === selectedClass);
@@ -85,6 +90,33 @@ const ResultEntry = () => {
       }
     }
   }, [selectedClass, classes]);
+
+  // Check which terms are already submitted when subject changes
+  useEffect(() => {
+    if (selectedClass && selectedSection && selectedSubject && teacherData) {
+      checkSubmittedTerms();
+    }
+  }, [selectedClass, selectedSection, selectedSubject, teacherData]);
+
+  const checkSubmittedTerms = async () => {
+    if (!selectedClass || !selectedSubject || !teacherData) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('results')
+        .select('term')
+        .eq('class', selectedClass)
+        .eq('subject', selectedSubject)
+        .eq('teacher_id', teacherData.id);
+      
+      if (error) throw error;
+      
+      const uniqueTerms = [...new Set(data?.map(r => r.term) || [])];
+      setSubmittedTerms(uniqueTerms);
+    } catch (error) {
+      console.error('Error checking submitted terms:', error);
+    }
+  };
 
   // Update current subject when subject selection changes
   useEffect(() => {
@@ -227,6 +259,10 @@ const ResultEntry = () => {
       if (resultsError) {
         console.error('Error fetching existing results:', resultsError);
       }
+
+      // Check if this term has existing results - if so, enable edit mode
+      const hasExistingResults = existingResults && existingResults.length > 0;
+      setIsEditMode(hasExistingResults);
 
       // Map existing results or default to 0
       const resultsMap = new Map(
@@ -469,14 +505,64 @@ const ResultEntry = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="first_term">First Term</SelectItem>
-                  <SelectItem value="second_term">Second Term</SelectItem>
-                  <SelectItem value="third_term">Third Term</SelectItem>
-                  <SelectItem value="final_term">Final Exam</SelectItem>
+                  <SelectItem value="first_term">
+                    <div className="flex items-center gap-2">
+                      First Term
+                      {submittedTerms.includes('first_term') && (
+                        <Badge variant="secondary" className="text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Submitted
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="second_term">
+                    <div className="flex items-center gap-2">
+                      Second Term
+                      {submittedTerms.includes('second_term') && (
+                        <Badge variant="secondary" className="text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Submitted
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="third_term">
+                    <div className="flex items-center gap-2">
+                      Third Term
+                      {submittedTerms.includes('third_term') && (
+                        <Badge variant="secondary" className="text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Submitted
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="final_term">
+                    <div className="flex items-center gap-2">
+                      Final Exam
+                      {submittedTerms.includes('final_term') && (
+                        <Badge variant="secondary" className="text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Submitted
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {/* Edit mode indicator */}
+          {isEditMode && selectedClass && selectedSection && selectedSubject && (
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm flex items-center gap-2">
+              <Edit className="w-4 h-4 text-amber-600" />
+              <span className="text-amber-700 dark:text-amber-400">
+                <strong>Edit Mode:</strong> Results for this term have already been submitted. You are now editing existing marks.
+              </span>
+            </div>
+          )}
 
           {currentSubject && (
             <div className="mb-4 p-3 bg-muted/50 rounded-lg text-sm">
@@ -641,8 +727,8 @@ const ResultEntry = () => {
 
               <div className="mt-6 flex justify-end">
                 <Button onClick={handleSaveResults} disabled={loading} size="lg">
-                  <Save className="w-4 h-4 mr-2" />
-                  {loading ? 'Saving...' : 'Save Results'}
+                  {isEditMode ? <Edit className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  {loading ? 'Saving...' : isEditMode ? 'Update Results' : 'Save Results'}
                 </Button>
               </div>
             </>

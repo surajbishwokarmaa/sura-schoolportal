@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.create-user-account]
 verify_jwt = true
+
+[functions.setup-admin]
+verify_jwt = false
