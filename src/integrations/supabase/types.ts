@@ -504,6 +504,7 @@ export type Database = {
           teacher_name: string
         }[]
       }
+      get_user_parent_phone: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
