@@ -16,6 +16,7 @@ interface StudentContextType {
   selectedStudent: StudentInfo | null;
   allStudents: StudentInfo[];
   hasMultipleStudents: boolean;
+  isLoading: boolean;
   setSelectedStudent: (student: StudentInfo | null) => void;
   clearStudentSelection: () => void;
   refreshStudents: () => Promise<void>;
@@ -27,6 +28,7 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
   const { user, userRole } = useAuth();
   const [selectedStudent, setSelectedStudent] = useState<StudentInfo | null>(null);
   const [allStudents, setAllStudents] = useState<StudentInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (user && userRole === 'student') {
@@ -34,61 +36,70 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setAllStudents([]);
       setSelectedStudent(null);
+      setIsLoading(false);
     }
   }, [user, userRole]);
 
   const fetchStudents = async () => {
+    setIsLoading(true);
     try {
-      // Get parent phone from user metadata or from student record
-      let parentPhone: string | null = null;
-      
-      // Try to get parent_phone from the current user's student record
+      // First get the student record linked to this user
       const { data: currentStudent, error: currentError } = await supabase
         .from('students')
-        .select('parent_phone')
+        .select('id, parent_phone')
         .eq('user_id', user?.id)
         .maybeSingle();
 
-      if (currentStudent?.parent_phone) {
-        parentPhone = currentStudent.parent_phone;
-      }
-
-      if (!parentPhone) {
-        console.log('No parent phone found for user');
+      if (currentError) {
+        console.error('Error fetching current student:', currentError);
+        setIsLoading(false);
         return;
       }
 
-      // Fetch all students with this parent_phone (siblings)
+      if (!currentStudent?.parent_phone) {
+        console.log('No parent phone found for user');
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch ALL students with this parent_phone (siblings)
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('id, name, roll_no, class, section, photo_url, parent_phone')
-        .eq('parent_phone', parentPhone)
+        .eq('parent_phone', currentStudent.parent_phone)
         .eq('is_active', true)
         .order('class', { ascending: true })
         .order('roll_no', { ascending: true });
 
-      if (studentsError) throw studentsError;
+      if (studentsError) {
+        console.error('Error fetching students:', studentsError);
+        setIsLoading(false);
+        return;
+      }
 
       const students = studentsData || [];
+      console.log('Found students for parent:', students.length);
       setAllStudents(students);
 
-      // Check if there's a saved selection in localStorage first
+      // Check localStorage for saved selection first
       const savedStudentId = localStorage.getItem('selectedStudentId');
-      if (savedStudentId && students.length > 1) {
+      
+      if (students.length === 1) {
+        // Only one student - auto-select
+        setSelectedStudent(students[0]);
+      } else if (students.length > 1 && savedStudentId) {
+        // Multiple students - check for saved selection
         const savedStudent = students.find(s => s.id === savedStudentId);
         if (savedStudent) {
           setSelectedStudent(savedStudent);
-          return;
         }
+        // If no valid saved selection, leave null to trigger picker
       }
-
-      // If only one student, auto-select them
-      if (students.length === 1) {
-        setSelectedStudent(students[0]);
-      }
-      // If multiple students and no saved selection, leave selectedStudent null to trigger picker
+      // If multiple students and no saved selection, selectedStudent stays null
     } catch (error) {
-      console.error('Error fetching students:', error);
+      console.error('Error in fetchStudents:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -118,6 +129,7 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
         selectedStudent,
         allStudents,
         hasMultipleStudents,
+        isLoading,
         setSelectedStudent: handleSetSelectedStudent,
         clearStudentSelection,
         refreshStudents

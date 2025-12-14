@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Edit2, Trash2, ArrowLeft, GraduationCap } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, GraduationCap, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,8 @@ interface Class {
   sections: string[];
 }
 
+const ITEMS_PER_PAGE = 20;
+
 const StudentsManagement = () => {
   const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
@@ -70,6 +72,11 @@ const StudentsManagement = () => {
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Pagination and search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterClass, setFilterClass] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!loading && (!user || userRole !== 'admin')) {
@@ -98,6 +105,39 @@ const StudentsManagement = () => {
       setStudents((data as any) || []);
     }
   };
+
+  // Filtered and paginated students
+  const filteredStudents = useMemo(() => {
+    let result = students;
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(s => 
+        s.name.toLowerCase().includes(query) ||
+        s.roll_no.toLowerCase().includes(query) ||
+        s.parent_phone.includes(query)
+      );
+    }
+    
+    // Filter by class
+    if (filterClass) {
+      result = result.filter(s => s.class === filterClass);
+    }
+    
+    return result;
+  }, [students, searchQuery, filterClass]);
+
+  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredStudents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredStudents, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterClass]);
 
   const fetchClasses = async () => {
     const { data, error } = await supabase
@@ -421,15 +461,17 @@ const StudentsManagement = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/admin')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Students Management</h1>
-              <p className="text-muted-foreground">Manage student records</p>
+              <h1 className="text-2xl sm:text-3xl font-bold">Students Management</h1>
+              <p className="text-muted-foreground text-sm">
+                {filteredStudents.length} students {filterClass ? `in ${filterClass}` : 'total'}
+              </p>
             </div>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -611,27 +653,56 @@ const StudentsManagement = () => {
           </Dialog>
         </div>
 
-        <div className="space-y-4">
-          {students.map((student) => (
-            <Card key={student.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <GraduationCap className="w-6 h-6 text-primary" />
+        {/* Search and Filter */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, roll no, or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={filterClass} onValueChange={setFilterClass}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="All Classes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Classes</SelectItem>
+              {classes.map((cls) => (
+                <SelectItem key={cls.id} value={cls.name}>
+                  {cls.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Student List */}
+        <div className="space-y-3">
+          {paginatedStudents.map((student) => (
+            <Card key={student.id} className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold">{student.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {student.class} - Section {student.section} | Roll No: {student.roll_no}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold truncate">{student.name}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {student.class} - {student.section} | Roll: {student.roll_no}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right text-sm">
-                    <p className="text-muted-foreground">Parent: {student.parent_name}</p>
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4 pl-13 sm:pl-0">
+                  <div className="text-right text-xs sm:text-sm">
+                    <p className="text-muted-foreground truncate max-w-[120px] sm:max-w-none">
+                      {student.parent_name || 'N/A'}
+                    </p>
                     <p className="text-muted-foreground">{student.parent_phone}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => handleEdit(student)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
@@ -649,6 +720,41 @@ const StudentsManagement = () => {
             </Card>
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground px-3">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        {filteredStudents.length === 0 && students.length > 0 && (
+          <Card className="p-8 text-center">
+            <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Results Found</h3>
+            <p className="text-muted-foreground">
+              Try adjusting your search or filter criteria
+            </p>
+          </Card>
+        )}
 
         {students.length === 0 && (
           <Card className="p-12 text-center">
