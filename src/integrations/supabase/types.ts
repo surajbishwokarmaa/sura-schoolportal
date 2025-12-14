@@ -157,6 +157,51 @@ export type Database = {
           },
         ]
       }
+      password_reset_requests: {
+        Row: {
+          admin_notes: string | null
+          class: string
+          created_at: string
+          email: string | null
+          id: string
+          message: string | null
+          parent_phone: string
+          resolved_at: string | null
+          resolved_by: string | null
+          roll_no: string
+          status: string
+          student_name: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          class: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          parent_phone: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          roll_no: string
+          status?: string
+          student_name: string
+        }
+        Update: {
+          admin_notes?: string | null
+          class?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          parent_phone?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          roll_no?: string
+          status?: string
+          student_name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

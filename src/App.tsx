@@ -16,11 +16,13 @@ import SubjectsManagement from "./pages/admin/SubjectsManagement";
 import BulkUploadManagement from "./pages/admin/BulkUploadManagement";
 import NoticesManagement from "./pages/admin/NoticesManagement";
 import ClassPromotion from "./pages/admin/ClassPromotion";
+import PasswordResetRequests from "./pages/admin/PasswordResetRequests";
 import SystemGuide from "./pages/admin/SystemGuide";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ViewMarksheet from "./pages/student/ViewMarksheet";
 import StudentViewNotices from "./pages/student/ViewNotices";
 import StaffInfo from "./pages/student/StaffInfo";
+import ForgotPassword from "./pages/student/ForgotPassword";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import ResultEntry from "./pages/teacher/ResultEntry";
 import ViewStudents from "./pages/teacher/ViewStudents";
@@ -40,6 +42,7 @@ const App = () => (
           <StudentProvider>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/auth/teacher" element={<TeacherAuth />} />
               <Route path="/auth/admin" element={<AdminAuth />} />
               <Route path="/student" element={<StudentDashboard />} />
@@ -59,6 +62,7 @@ const App = () => (
               <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
               <Route path="/admin/notices" element={<NoticesManagement />} />
               <Route path="/admin/promotion" element={<ClassPromotion />} />
+              <Route path="/admin/password-requests" element={<PasswordResetRequests />} />
               <Route path="/admin/system-guide" element={<SystemGuide />} />
               <Route path="/system-guide" element={<SystemGuide />} />
               <Route path="*" element={<NotFound />} />
