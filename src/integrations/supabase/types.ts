@@ -565,11 +565,11 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_terminal_class: { Args: { class_name: string }; Returns: boolean }
-      teacher_can_manage_result: {
-        Args: { _class: string; _subject: string; _teacher_id: string }
+      is_teacher_assigned_to_class_subject: {
+        Args: { _class: string; _subject: string }
         Returns: boolean
       }
+      is_terminal_class: { Args: { class_name: string }; Returns: boolean }
     }
     Enums: {
       graduation_status: "active" | "graduated" | "transferred" | "dropped"
