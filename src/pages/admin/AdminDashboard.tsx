@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp } from 'lucide-react';
+import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, ArrowUpCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -90,6 +90,13 @@ const AdminDashboard = () => {
       icon: Bell,
       path: '/admin/notices',
       color: 'from-pink-500 to-pink-600'
+    },
+    {
+      title: 'Class Promotion',
+      description: 'Promote students & manage graduation',
+      icon: ArrowUpCircle,
+      path: '/admin/promotion',
+      color: 'from-amber-500 to-amber-600'
     },
     {
       title: 'System Guide',

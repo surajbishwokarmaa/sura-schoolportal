@@ -49,6 +49,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          school_level: number
           sections: string[] | null
           subjects: Json
         }
@@ -56,6 +57,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          school_level?: number
           sections?: string[] | null
           subjects: Json
         }
@@ -63,6 +65,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          school_level?: number
           sections?: string[] | null
           subjects?: Json
         }
@@ -283,6 +286,7 @@ export type Database = {
           created_at: string
           dob: string | null
           gender: Database["public"]["Enums"]["student_gender"] | null
+          graduation_status: Database["public"]["Enums"]["graduation_status"]
           id: string
           is_active: boolean | null
           name: string
@@ -300,6 +304,7 @@ export type Database = {
           created_at?: string
           dob?: string | null
           gender?: Database["public"]["Enums"]["student_gender"] | null
+          graduation_status?: Database["public"]["Enums"]["graduation_status"]
           id?: string
           is_active?: boolean | null
           name: string
@@ -317,6 +322,7 @@ export type Database = {
           created_at?: string
           dob?: string | null
           gender?: Database["public"]["Enums"]["student_gender"] | null
+          graduation_status?: Database["public"]["Enums"]["graduation_status"]
           id?: string
           is_active?: boolean | null
           name?: string
@@ -489,6 +495,7 @@ export type Database = {
           grade: string
         }[]
       }
+      get_next_class: { Args: { current_class: string }; Returns: string }
       get_student_login_info: {
         Args: { parent_phone_input: string }
         Returns: {
@@ -512,8 +519,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_terminal_class: { Args: { class_name: string }; Returns: boolean }
     }
     Enums: {
+      graduation_status: "active" | "graduated" | "transferred" | "dropped"
       result_status: "pending" | "approved" | "published"
       student_gender: "male" | "female" | "other"
       term_type: "first_term" | "second_term" | "third_term" | "final_term"
@@ -645,6 +654,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      graduation_status: ["active", "graduated", "transferred", "dropped"],
       result_status: ["pending", "approved", "published"],
       student_gender: ["male", "female", "other"],
       term_type: ["first_term", "second_term", "third_term", "final_term"],
