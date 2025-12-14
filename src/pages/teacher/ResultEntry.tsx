@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, AlertCircle, User, Edit, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, User, Edit, CheckCircle, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface Student {
   id: string;
@@ -24,6 +25,7 @@ interface ResultEntry {
   student_id: string;
   theory_marks: number;
   practical_marks: number;
+  hasExisting?: boolean;
 }
 
 interface ClassData {
@@ -274,7 +276,8 @@ const ResultEntry = () => {
         return {
           student_id: s.id,
           theory_marks: existing?.theory_marks || 0,
-          practical_marks: existing?.practical_marks || 0
+          practical_marks: existing?.practical_marks || 0,
+          hasExisting: !!existing
         };
       }));
     } catch (error: any) {
@@ -311,6 +314,53 @@ const ResultEntry = () => {
           : r
       )
     );
+  };
+
+  const handleDeleteStudentResult = async (studentId: string, studentName: string) => {
+    if (!selectedClass || !selectedSubject || !selectedTerm) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('results')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('class', selectedClass)
+        .eq('subject', selectedSubject)
+        .eq('term', selectedTerm);
+      
+      if (error) throw error;
+      
+      // Reset this student's marks in local state
+      setResults(prev => 
+        prev.map(r => 
+          r.student_id === studentId 
+            ? { ...r, theory_marks: 0, practical_marks: 0, hasExisting: false }
+            : r
+        )
+      );
+      
+      toast({
+        title: 'Deleted',
+        description: `Result for ${studentName} has been deleted`,
+      });
+      
+      // Check if any results remain
+      const remainingExisting = results.filter(r => r.student_id !== studentId && r.hasExisting);
+      if (remainingExisting.length === 0) {
+        setIsEditMode(false);
+        setSubmittedTerms(prev => prev.filter(t => t !== selectedTerm));
+      }
+    } catch (error: any) {
+      console.error('Error deleting result:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete result',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveResults = async () => {
@@ -397,7 +447,11 @@ const ResultEntry = () => {
       }
       setIsEditMode(true);
       
-      navigate('/teacher');
+      // Mark all results as existing now
+      setResults(prev => prev.map(r => ({ ...r, hasExisting: true })));
+      
+      // Stay on page instead of navigating away so teacher can see the result
+      // navigate('/teacher');
     } catch (error: any) {
       console.error('Error saving results:', error);
       
@@ -636,10 +690,36 @@ const ResultEntry = () => {
                           <h4 className="font-semibold">{student.name}</h4>
                           <p className="text-sm text-muted-foreground">Roll: {student.roll_no}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-2">
                           <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">
                             {grade}
                           </span>
+                          {result?.hasExisting && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Result</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete the result for {student.name}? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => handleDeleteStudentResult(student.id, student.name)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -666,9 +746,15 @@ const ResultEntry = () => {
                           />
                         </div>
                       </div>
-                      <div className="mt-3 flex justify-between text-sm">
+                      <div className="mt-3 flex justify-between items-center text-sm">
                         <span>Total: <strong>{total}</strong></span>
                         <span>GPA: <strong>{gpa.toFixed(1)}</strong></span>
+                        {result?.hasExisting && (
+                          <Badge variant="outline" className="text-xs">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Saved
+                          </Badge>
+                        )}
                       </div>
                     </Card>
                   );
@@ -688,6 +774,8 @@ const ResultEntry = () => {
                       <th className="text-center py-3 px-4">Total</th>
                       <th className="text-center py-3 px-4">Grade</th>
                       <th className="text-center py-3 px-4">GPA</th>
+                      <th className="text-center py-3 px-4">Status</th>
+                      <th className="text-center py-3 px-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -735,6 +823,44 @@ const ResultEntry = () => {
                             </span>
                           </td>
                           <td className="text-center py-3 px-4 font-medium">{gpa.toFixed(1)}</td>
+                          <td className="text-center py-3 px-4">
+                            {result?.hasExisting ? (
+                              <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Saved
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">New</Badge>
+                            )}
+                          </td>
+                          <td className="text-center py-3 px-4">
+                            {result?.hasExisting && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Result</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete the result for {student.name}? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDeleteStudentResult(student.id, student.name)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
