@@ -303,8 +303,7 @@ const ViewMarksheet = () => {
         name: studentData.name,
         rollNo: studentData.roll_no,
         class: studentData.class,
-        section: studentData.section,
-        photoUrl: studentData.photo_url
+        section: studentData.section
       },
       results: completedResults.map(r => ({
         subject: r.subject,
@@ -467,15 +466,6 @@ const ViewMarksheet = () => {
                   <span>{studentData.section}</span>
                 </div>
               </div>
-              {studentData.photo_url && (
-                <div className="flex justify-center sm:justify-end">
-                  <img
-                    src={studentData.photo_url}
-                    alt="Student"
-                    className="w-24 h-28 sm:w-28 sm:h-32 object-cover border-2 border-border rounded"
-                  />
-                </div>
-              )}
             </div>
           )}
 

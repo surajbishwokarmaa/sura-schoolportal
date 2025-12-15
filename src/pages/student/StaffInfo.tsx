@@ -5,9 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Search, Users, Phone, BookOpen } from 'lucide-react';
+import { ArrowLeft, Search, Users, Phone, BookOpen, User } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
 interface Teacher {
@@ -15,7 +14,6 @@ interface Teacher {
   name: string;
   phone: string | null;
   subjects: string[];
-  photo_url: string | null;
 }
 
 const StaffInfo = () => {
@@ -52,7 +50,7 @@ const StaffInfo = () => {
     try {
       const { data, error } = await supabase
         .from('teachers')
-        .select('id, name, phone, subjects, photo_url')
+        .select('id, name, phone, subjects')
         .order('name');
 
       if (error) throw error;
@@ -129,12 +127,9 @@ const StaffInfo = () => {
                 className="p-4 hover:shadow-lg transition-shadow"
               >
                 <div className="flex items-start gap-4">
-                  <Avatar className="w-14 h-14 sm:w-16 sm:h-16">
-                    <AvatarImage src={teacher.photo_url || undefined} alt={teacher.name} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                      {getInitials(teacher.name)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-7 h-7 text-primary" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-base truncate">{teacher.name}</h3>
                     {teacher.phone && (

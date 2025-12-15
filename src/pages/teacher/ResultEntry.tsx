@@ -18,7 +18,6 @@ interface Student {
   id: string;
   name: string;
   roll_no: string;
-  photo_url: string | null;
 }
 
 interface ResultEntry {
@@ -229,7 +228,7 @@ const ResultEntry = () => {
     try {
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, name, roll_no, photo_url')
+        .select('id, name, roll_no')
         .eq('class', selectedClass)
         .eq('section', selectedSection)
         .eq('is_active', true)
@@ -680,12 +679,9 @@ const ResultEntry = () => {
                   return (
                     <Card key={student.id} className="p-4">
                       <div className="flex items-start gap-3 mb-4">
-                        <Avatar className="w-12 h-12 border-2 border-primary/20">
-                          <AvatarImage src={student.photo_url || ''} alt={student.name} />
-                          <AvatarFallback className="bg-primary/10">
-                            <User className="w-6 h-6 text-primary" />
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="w-12 h-12 border-2 border-primary/20 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="w-6 h-6 text-primary" />
+                        </div>
                         <div className="flex-1">
                           <h4 className="font-semibold">{student.name}</h4>
                           <p className="text-sm text-muted-foreground">Roll: {student.roll_no}</p>
@@ -766,7 +762,6 @@ const ResultEntry = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left py-3 px-4">Photo</th>
                       <th className="text-left py-3 px-4">Roll</th>
                       <th className="text-left py-3 px-4">Name</th>
                       <th className="text-center py-3 px-4">Theory ({theoryMax})</th>
@@ -786,14 +781,6 @@ const ResultEntry = () => {
 
                       return (
                         <tr key={student.id} className="border-b hover:bg-muted/50">
-                          <td className="py-3 px-4">
-                            <Avatar className="w-10 h-10 border-2 border-primary/20">
-                              <AvatarImage src={student.photo_url || ''} alt={student.name} />
-                              <AvatarFallback className="bg-primary/10 text-xs">
-                                <User className="w-5 h-5 text-primary" />
-                              </AvatarFallback>
-                            </Avatar>
-                          </td>
                           <td className="py-3 px-4 font-medium">{student.roll_no}</td>
                           <td className="py-3 px-4">{student.name}</td>
                           <td className="py-3 px-4">
