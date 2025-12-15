@@ -15,7 +15,7 @@ import StudentsManagement from "./pages/admin/StudentsManagement";
 import SubjectsManagement from "./pages/admin/SubjectsManagement";
 import BulkUploadManagement from "./pages/admin/BulkUploadManagement";
 import NoticesManagement from "./pages/admin/NoticesManagement";
-import ClassPromotion from "./pages/admin/ClassPromotion";
+import AcademicYearManagement from "./pages/admin/AcademicYearManagement";
 import PasswordResetRequests from "./pages/admin/PasswordResetRequests";
 import SystemGuide from "./pages/admin/SystemGuide";
 import ChangePassword from "./pages/admin/ChangePassword";
@@ -62,7 +62,7 @@ const App = () => (
               <Route path="/admin/subjects" element={<SubjectsManagement />} />
               <Route path="/admin/bulk-upload" element={<BulkUploadManagement />} />
               <Route path="/admin/notices" element={<NoticesManagement />} />
-              <Route path="/admin/promotion" element={<ClassPromotion />} />
+              <Route path="/admin/academic-year" element={<AcademicYearManagement />} />
               <Route path="/admin/password-requests" element={<PasswordResetRequests />} />
               <Route path="/admin/change-password" element={<ChangePassword />} />
               <Route path="/admin/system-guide" element={<SystemGuide />} />
