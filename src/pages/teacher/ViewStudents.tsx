@@ -121,7 +121,7 @@ const ViewStudents = () => {
                   <SelectValue placeholder="Select Class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teacherData?.classes_assigned.map((className: string) => (
+                  {(teacherData?.classes_assigned || []).filter((c: string) => c && c.trim()).map((className: string) => (
                     <SelectItem key={className} value={className}>
                       {className}
                     </SelectItem>
@@ -137,7 +137,7 @@ const ViewStudents = () => {
                   <SelectValue placeholder="Select Section" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedClassData?.sections.map((section: string) => (
+                  {(selectedClassData?.sections || []).filter((s: string) => s && s.trim()).map((section: string) => (
                     <SelectItem key={section} value={section}>
                       {section}
                     </SelectItem>

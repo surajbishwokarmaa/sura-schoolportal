@@ -537,7 +537,7 @@ const StudentsManagement = () => {
                         <SelectValue placeholder="Select section" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getAvailableSections().map((section) => (
+                        {getAvailableSections().filter((s: string) => s && s.trim()).map((section) => (
                           <SelectItem key={section} value={section}>
                             Section {section}
                           </SelectItem>

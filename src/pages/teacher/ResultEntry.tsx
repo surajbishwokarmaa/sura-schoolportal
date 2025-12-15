@@ -504,7 +504,7 @@ const ResultEntry = () => {
                   <SelectValue placeholder="Select Class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teacherClasses.map((className: string) => (
+                  {teacherClasses.filter((c: string) => c && c.trim()).map((className: string) => (
                     <SelectItem key={className} value={className}>
                       {className}
                     </SelectItem>
@@ -524,7 +524,7 @@ const ResultEntry = () => {
                   <SelectValue placeholder={availableSections.length === 0 ? "No sections available" : "Select Section"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableSections.map((section: string) => (
+                  {availableSections.filter((s: string) => s && s.trim()).map((section: string) => (
                     <SelectItem key={section} value={section}>
                       {section}
                     </SelectItem>
