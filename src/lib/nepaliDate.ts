@@ -58,6 +58,20 @@ export function getCurrentNepaliDate(): { nepali: string; english: string } {
   };
 }
 
+export function getCurrentNepaliYear(): number {
+  try {
+    const nepaliDate = new NepaliDate(new Date());
+    return nepaliDate.getYear();
+  } catch (error) {
+    // Fallback calculation: AD year + 56/57
+    const now = new Date();
+    const adYear = now.getFullYear();
+    const month = now.getMonth();
+    // Nepali new year is mid-April, so before April add 56, after add 57
+    return adYear + (month >= 3 ? 57 : 56);
+  }
+}
+
 export function formatDualDate(date: Date | string): { nepali: string; english: string } {
   const d = typeof date === 'string' ? new Date(date) : date;
   return {
