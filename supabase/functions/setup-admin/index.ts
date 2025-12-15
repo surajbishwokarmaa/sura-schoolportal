@@ -6,11 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Fixed admin credentials
-const ADMIN_EMAIL = 'buddhadeep2057@gmail.com';
-const ADMIN_PASSWORD = '12345678';
-const ADMIN_NAME = 'Admin';
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,6 +14,27 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    // Get admin credentials from secure environment variables
+    const adminEmail = Deno.env.get('ADMIN_EMAIL');
+    const adminPassword = Deno.env.get('ADMIN_PASSWORD');
+    const adminName = Deno.env.get('ADMIN_NAME') || 'Admin';
+    
+    if (!adminEmail || !adminPassword) {
+      console.error('Admin credentials not configured in environment');
+      return new Response(
+        JSON.stringify({ error: 'Admin credentials not configured. Please set ADMIN_EMAIL and ADMIN_PASSWORD secrets.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Validate password strength
+    if (adminPassword.length < 12) {
+      return new Response(
+        JSON.stringify({ error: 'Admin password must be at least 12 characters for security' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -33,24 +49,24 @@ serve(async (req) => {
     const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (listError) {
-      console.error('Error listing users:', listError);
-      throw listError;
+      console.error('Error listing users');
+      throw new Error('Failed to check existing users');
     }
 
-    const existingAdmin = existingUsers?.users?.find(u => u.email === ADMIN_EMAIL);
+    const existingAdmin = existingUsers?.users?.find(u => u.email === adminEmail);
 
     if (existingAdmin) {
-      console.log('Admin user already exists, updating password...');
+      console.log('Admin user already exists, updating...');
       
       // Update password for existing admin
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
         existingAdmin.id,
-        { password: ADMIN_PASSWORD, email_confirm: true }
+        { password: adminPassword, email_confirm: true }
       );
 
       if (updateError) {
-        console.error('Error updating admin:', updateError);
-        throw updateError;
+        console.error('Error updating admin');
+        throw new Error('Failed to update admin account');
       }
 
       // Ensure admin role exists
@@ -70,8 +86,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'Admin account updated successfully',
-          email: ADMIN_EMAIL 
+          message: 'Admin account updated successfully'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -79,37 +94,34 @@ serve(async (req) => {
 
     // Create new admin user
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
+      email: adminEmail,
+      password: adminPassword,
       email_confirm: true,
       user_metadata: {
-        full_name: ADMIN_NAME,
+        full_name: adminName,
         role: 'admin'
       }
     });
 
     if (authError) {
-      console.error('Error creating admin:', authError);
-      throw authError;
+      console.error('Error creating admin');
+      throw new Error('Failed to create admin account');
     }
 
-    console.log('Admin account created:', authUser.user.id);
+    console.log('Admin account created successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Admin account created successfully',
-        email: ADMIN_EMAIL,
-        userId: authUser.user.id
+        message: 'Admin account created successfully'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: unknown) {
-    console.error('Error in setup-admin function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to setup admin account';
+    console.error('Setup admin error');
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Failed to setup admin account' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
