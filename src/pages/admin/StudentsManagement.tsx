@@ -664,12 +664,12 @@ const StudentsManagement = () => {
               className="pl-9"
             />
           </div>
-          <Select value={filterClass} onValueChange={setFilterClass}>
+          <Select value={filterClass || "all"} onValueChange={(value) => setFilterClass(value === "all" ? "" : value)}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="All Classes" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Classes</SelectItem>
+              <SelectItem value="all">All Classes</SelectItem>
               {classes.map((cls) => (
                 <SelectItem key={cls.id} value={cls.name}>
                   {cls.name}
