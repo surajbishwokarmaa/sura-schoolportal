@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, ArrowUpCircle, KeyRound, Lock } from 'lucide-react';
+import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, KeyRound, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -78,6 +78,13 @@ const AdminDashboard = () => {
       color: 'from-cyan-500 to-cyan-600'
     },
     {
+      title: 'Academic Year',
+      description: 'Manage academic years & auto-promotion',
+      icon: TrendingUp,
+      path: '/admin/academic-year',
+      color: 'from-amber-500 to-amber-600'
+    },
+    {
       title: 'Bulk Upload',
       description: 'Upload students/teachers from Excel',
       icon: Upload,
@@ -90,13 +97,6 @@ const AdminDashboard = () => {
       icon: Bell,
       path: '/admin/notices',
       color: 'from-pink-500 to-pink-600'
-    },
-    {
-      title: 'Class Promotion',
-      description: 'Promote students & manage graduation',
-      icon: ArrowUpCircle,
-      path: '/admin/promotion',
-      color: 'from-amber-500 to-amber-600'
     },
     {
       title: 'Password Requests',
