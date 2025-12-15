@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { getCurrentNepaliYear } from '@/lib/nepaliDate';
 
 const AdminDashboard = () => {
   const { user, userRole, loading } = useAuth();
@@ -69,20 +70,6 @@ const AdminDashboard = () => {
       icon: BookOpen,
       path: '/admin/classes',
       color: 'from-purple-500 to-purple-600'
-    },
-    {
-      title: 'Manage Subjects',
-      description: 'Add subjects for each class',
-      icon: FileText,
-      path: '/admin/subjects',
-      color: 'from-cyan-500 to-cyan-600'
-    },
-    {
-      title: 'Academic Year',
-      description: 'Manage academic years & auto-promotion',
-      icon: TrendingUp,
-      path: '/admin/academic-year',
-      color: 'from-amber-500 to-amber-600'
     },
     {
       title: 'Bulk Upload',
@@ -204,7 +191,7 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Academic Year:</span>
-                <span className="ml-2 font-medium">2082</span>
+                <span className="ml-2 font-medium">{getCurrentNepaliYear()}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">System Status:</span>
