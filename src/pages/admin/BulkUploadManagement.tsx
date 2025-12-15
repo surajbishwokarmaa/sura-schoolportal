@@ -21,50 +21,60 @@ const BulkUploadManagement = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
 
+  // Required columns for validation
+  const STUDENT_COLUMNS = ['student_name', 'roll_no', 'class', 'section', 'parent_mobile', 'gender', 'dob', 'status'];
+  const TEACHER_COLUMNS = ['teacher_name', 'phone_number', 'assigned_class', 'assigned_subject'];
+
   const downloadTemplate = (type: 'students' | 'teachers') => {
-    let data: any[] = [];
+    let headers: string[] = [];
+    let sampleData: any[] = [];
     let filename = '';
 
     if (type === 'students') {
-      data = [{
-        'Roll No': '1',
-        'Full Name': 'Sita Sharma',
-        'Gender': 'female',
-        'Date of Birth': '2014-05-12',
-        'Class': '5',
-        'Section': 'B',
-        'Phone (Family)': '9812345678',
-        'Address': 'Dharan',
-        'Parent Name': 'Ram Sharma',
-        'Photo URL': ''
+      headers = STUDENT_COLUMNS;
+      sampleData = [{
+        'student_name': 'Sita Sharma (SAMPLE - DELETE THIS ROW)',
+        'roll_no': 1,
+        'class': 5,
+        'section': 'A',
+        'parent_mobile': 9812345678,
+        'gender': 'Female',
+        'dob': '2014-05-12',
+        'status': 'Active'
       }];
-      filename = 'students_template.xlsx';
+      filename = 'students_bulk_upload_format.xlsx';
     } else {
-      data = [{
-        'Full Name': 'Ramesh Thapa',
-        'Gender': 'male',
-        'Subject 1': 'Science',
-        'Subject 2': 'Math',
-        'Class 1': '8',
-        'Class 2': '9',
-        'Phone': '9800001111',
-        'Email': 'ramesh.thapa@school.edu.np',
-        'Password': 'teacher123',
-        'Address': 'Itahari',
-        'Photo URL': ''
+      headers = TEACHER_COLUMNS;
+      sampleData = [{
+        'teacher_name': 'Ramesh Thapa (SAMPLE - DELETE THIS ROW)',
+        'phone_number': 9800001111,
+        'assigned_class': 'Grade 5, Grade 6',
+        'assigned_subject': 'Math, Science'
       }];
-      filename = 'teachers_template.xlsx';
+      filename = 'teachers_bulk_upload_format.xlsx';
     }
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    // Create worksheet with headers in exact order
+    const ws = XLSX.utils.json_to_sheet(sampleData, { header: headers });
+    
+    // Set column widths for better readability
+    const colWidths = headers.map(h => ({ wch: Math.max(h.length + 5, 20) }));
+    ws['!cols'] = colWidths;
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, type === 'students' ? 'Students' : 'Teachers');
     XLSX.writeFile(wb, filename);
 
     toast({
-      title: "Template Downloaded",
-      description: `${filename} has been downloaded successfully.`,
+      title: "Excel Format Downloaded",
+      description: `Use this exact format for uploading ${type}. Delete the sample row before uploading.`,
     });
+  };
+
+  const validateColumns = (uploadedColumns: string[], requiredColumns: string[]): { valid: boolean; missing: string[] } => {
+    const normalizedUploaded = uploadedColumns.map(c => c.toString().toLowerCase().trim());
+    const missing = requiredColumns.filter(col => !normalizedUploaded.includes(col.toLowerCase()));
+    return { valid: missing.length === 0, missing };
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'students' | 'teachers') => {
@@ -107,6 +117,22 @@ const BulkUploadManagement = () => {
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+          if (jsonData.length === 0) {
+            throw new Error("The uploaded file is empty. Please add data and try again.");
+          }
+
+          // Validate column structure
+          const uploadedColumns = Object.keys(jsonData[0] as object);
+          const requiredColumns = type === 'students' ? STUDENT_COLUMNS : TEACHER_COLUMNS;
+          const validation = validateColumns(uploadedColumns, requiredColumns);
+
+          if (!validation.valid) {
+            throw new Error(
+              `Uploaded file does not match system format. Missing columns: ${validation.missing.join(', ')}. ` +
+              `Please download the correct format and try again.`
+            );
+          }
 
           setUploadProgress(30);
 
@@ -256,9 +282,12 @@ const BulkUploadManagement = () => {
                 </Button>
               </label>
             </div>
-            <div className="text-sm text-muted-foreground">
-              <p><strong>Required fields:</strong> Roll No, Full Name, Gender, Date of Birth, Class, Section, Phone (Family)</p>
-              <p><strong>Accepted formats:</strong> .xlsx, .xls, .csv (Max 10MB)</p>
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+              <p className="font-medium mb-1">📋 Required columns (exact names):</p>
+              <code className="text-xs bg-background px-2 py-1 rounded">
+                {STUDENT_COLUMNS.join(' | ')}
+              </code>
+              <p className="mt-2"><strong>Accepted formats:</strong> .xlsx, .xls, .csv (Max 10MB, up to 1400+ records)</p>
             </div>
           </CardContent>
         </Card>
@@ -300,9 +329,13 @@ const BulkUploadManagement = () => {
                 </Button>
               </label>
             </div>
-            <div className="text-sm text-muted-foreground">
-              <p><strong>Required fields:</strong> Full Name, Gender, Subject, Class Assigned, Phone, Email, Password</p>
-              <p><strong>Accepted formats:</strong> .xlsx, .xls, .csv (Max 10MB)</p>
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+              <p className="font-medium mb-1">📋 Required columns (exact names):</p>
+              <code className="text-xs bg-background px-2 py-1 rounded">
+                {TEACHER_COLUMNS.join(' | ')}
+              </code>
+              <p className="mt-2"><strong>Accepted formats:</strong> .xlsx, .xls, .csv (Max 10MB, up to 1400+ records)</p>
+              <p className="mt-1 text-xs">💡 For multiple classes/subjects, separate with commas (e.g., "Grade 5, Grade 6")</p>
             </div>
           </CardContent>
         </Card>
