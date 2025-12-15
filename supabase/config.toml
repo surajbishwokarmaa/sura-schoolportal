@@ -1,13 +1,1 @@
-project_id = "ozrpoufjuxnrpgzlzzuy"
-
-[functions.process-bulk-upload]
-verify_jwt = true
-
-[functions.calculate-result]
-verify_jwt = true
-
-[functions.create-user-account]
-verify_jwt = true
-
-[functions.setup-admin]
-verify_jwt = false
+project_id = "rnumvmnffnqjegxaldiq"
