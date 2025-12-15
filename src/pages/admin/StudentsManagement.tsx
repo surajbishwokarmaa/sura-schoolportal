@@ -36,7 +36,6 @@ interface Student {
   phone: string | null;
   parent_phone: string;
   address: string | null;
-  photo_url: string | null;
 }
 
 interface Class {
@@ -68,10 +67,7 @@ const StudentsManagement = () => {
     address: '',
     password: ''
   });
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   
   // Pagination and search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -161,61 +157,6 @@ const StudentsManagement = () => {
     return cls?.sections || [];
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast({
-          title: 'Error',
-          description: 'Photo size must be less than 2MB',
-          variant: 'destructive'
-        });
-        return;
-      }
-      setPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const uploadPhoto = async (file: File, studentId: string): Promise<string | null> => {
-    try {
-      setIsUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${studentId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('student-photos')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('student-photos')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: `Failed to upload photo: ${error.message}`,
-        variant: 'destructive'
-      });
-      return null;
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -251,17 +192,6 @@ const StudentsManagement = () => {
         resetForm();
       }
     } else {
-      // Validate photo is uploaded
-      if (!photoFile) {
-        toast({
-          title: 'Error',
-          description: 'Photo is required for all students',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-        return;
-      }
-
       // Validate password
       if (!formData.password || formData.password.trim() === '') {
         toast({
@@ -333,21 +263,8 @@ const StudentsManagement = () => {
       }
 
       const authUser = authData.user;
-      
-      // Upload photo first
-      const photoUrl = await uploadPhoto(photoFile, authUser.id);
-      
-      if (!photoUrl) {
-        toast({
-          title: 'Error',
-          description: 'Failed to upload photo. Please try again.',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-        return;
-      }
 
-      // Insert student record with uploaded photo URL
+      // Insert student record
       const { error } = await supabase
         .from('students')
         .insert([{
@@ -361,7 +278,6 @@ const StudentsManagement = () => {
           parent_name: formData.parentName?.trim() || null,
           parent_phone: formData.parentPhone.trim(),
           address: formData.address?.trim() || null,
-          photo_url: photoUrl,
           is_active: true
         }]);
 
@@ -399,7 +315,6 @@ const StudentsManagement = () => {
       address: student.address || '',
       password: ''
     });
-    setPhotoPreview(student.photo_url || '');
     setIsDialogOpen(true);
   };
 
@@ -441,8 +356,6 @@ const StudentsManagement = () => {
       address: '',
       password: ''
     });
-    setPhotoFile(null);
-    setPhotoPreview('');
     setEditingStudent(null);
     setIsDialogOpen(false);
   };
@@ -604,34 +517,6 @@ const StudentsManagement = () => {
                     />
                   </div>
                 </div>
-                {!editingStudent && (
-                  <div>
-                    <Label htmlFor="photo">Upload Photo *</Label>
-                    <Input
-                      id="photo"
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Photo is required (max 2MB). Click Browse to select an image.
-                    </p>
-                    {photoPreview && (
-                      <div className="mt-2">
-                        <img src={photoPreview} alt="Preview" className="w-24 h-24 object-cover rounded" />
-                      </div>
-                    )}
-                  </div>
-                )}
-                {editingStudent && (
-                  <div>
-                    <Label>Current Photo</Label>
-                    <div className="mt-2">
-                      <img src={photoPreview} alt="Student" className="w-24 h-24 object-cover rounded" />
-                    </div>
-                  </div>
-                )}
                 <div>
                   <Label htmlFor="address">Address</Label>
                   <Input
@@ -641,8 +526,8 @@ const StudentsManagement = () => {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={isLoading || isUploading}>
-                    {isLoading || isUploading ? 'Saving...' : editingStudent ? 'Update' : 'Create'}
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? 'Saving...' : editingStudent ? 'Update' : 'Create'}
                   </Button>
                   <Button type="button" variant="outline" onClick={resetForm}>
                     Cancel

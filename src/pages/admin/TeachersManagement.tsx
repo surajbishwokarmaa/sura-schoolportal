@@ -25,7 +25,6 @@ interface Teacher {
   phone: string | null;
   subjects: string[];
   classes_assigned: string[];
-  photo_url: string | null;
 }
 
 interface Class {
@@ -49,10 +48,7 @@ const TeachersManagement = () => {
     password: ''
   });
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || userRole !== 'admin')) {
@@ -94,61 +90,6 @@ const TeachersManagement = () => {
       });
     } else {
       setClasses(data || []);
-    }
-  };
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast({
-          title: 'Error',
-          description: 'Photo size must be less than 2MB',
-          variant: 'destructive'
-        });
-        return;
-      }
-      setPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const uploadPhoto = async (file: File, teacherId: string): Promise<string | null> => {
-    try {
-      setIsUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${teacherId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('teacher-photos')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('teacher-photos')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: `Failed to upload photo: ${error.message}`,
-        variant: 'destructive'
-      });
-      return null;
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -212,16 +153,6 @@ const TeachersManagement = () => {
         return;
       }
 
-      if (!photoFile) {
-        toast({
-          title: 'Error',
-          description: 'Photo is required for all teachers',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-        return;
-      }
-
       const password = formData.password;
       const generatedEmail = generateEmailFromPhone(formData.phone);
 
@@ -273,21 +204,8 @@ const TeachersManagement = () => {
       }
 
       const authUser = authData.user;
-      
-      // Upload photo first
-      const photoUrl = await uploadPhoto(photoFile, authUser.id);
-      
-      if (!photoUrl) {
-        toast({
-          title: 'Error',
-          description: 'Failed to upload photo. Please try again.',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-        return;
-      }
 
-      // Insert teacher record with uploaded photo URL
+      // Insert teacher record
       const { error } = await supabase
         .from('teachers')
         .insert({
@@ -296,8 +214,7 @@ const TeachersManagement = () => {
           email: generatedEmail,
           phone: formData.phone,
           subjects: subjectsArray,
-          classes_assigned: classesArray,
-          photo_url: photoUrl
+          classes_assigned: classesArray
         });
 
       if (error) {
@@ -329,7 +246,6 @@ const TeachersManagement = () => {
       password: ''
     });
     setSelectedClasses(teacher.classes_assigned || []);
-    setPhotoPreview(teacher.photo_url || '');
     setIsDialogOpen(true);
   };
 
@@ -366,8 +282,6 @@ const TeachersManagement = () => {
       password: ''
     });
     setSelectedClasses([]);
-    setPhotoFile(null);
-    setPhotoPreview('');
     setEditingTeacher(null);
     setIsDialogOpen(false);
   };
@@ -499,27 +413,7 @@ const TeachersManagement = () => {
                     </p>
                   )}
                 </div>
-                {!editingTeacher && (
-                  <div>
-                    <Label htmlFor="photo">Upload Photo *</Label>
-                    <Input
-                      id="photo"
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Photo is required (max 2MB). Click Browse to select an image.
-                    </p>
-                    {photoPreview && (
-                      <div className="mt-2">
-                        <img src={photoPreview} alt="Preview" className="w-24 h-24 object-cover rounded" />
-                      </div>
-                    )}
-                  </div>
-                )}
-                <Button type="submit" disabled={isLoading || isUploading} className="w-full">
+                <Button type="submit" disabled={isLoading} className="w-full">
                   {isLoading ? 'Creating...' : editingTeacher ? 'Update Teacher' : 'Create Teacher'}
                 </Button>
               </form>
@@ -531,17 +425,9 @@ const TeachersManagement = () => {
           {teachers.map((teacher) => (
             <Card key={teacher.id} className="p-6">
               <div className="flex items-start gap-4">
-                {teacher.photo_url ? (
-                  <img
-                    src={teacher.photo_url}
-                    alt={teacher.name}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="w-8 h-8 text-primary" />
-                  </div>
-                )}
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users className="w-8 h-8 text-primary" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-lg truncate">{teacher.name}</h3>
                   {teacher.phone && (

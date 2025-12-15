@@ -6,14 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Users } from 'lucide-react';
+import { ArrowLeft, Users, User } from 'lucide-react';
 
 interface Student {
   id: string;
   name: string;
   roll_no: string;
-  photo_url: string | null;
   parent_name: string | null;
   parent_phone: string;
 }
@@ -78,7 +76,7 @@ const ViewStudents = () => {
     try {
       const { data, error } = await supabase
         .from('students')
-        .select('*')
+        .select('id, name, roll_no, parent_name, parent_phone')
         .eq('class', selectedClass)
         .eq('section', selectedSection)
         .eq('is_active', true)
@@ -159,10 +157,9 @@ const ViewStudents = () => {
               {students.map((student) => (
                 <Card key={student.id} className="p-4">
                   <div className="flex items-start gap-4">
-                    <Avatar className="w-16 h-16">
-                      <AvatarImage src={student.photo_url || ''} />
-                      <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-8 h-8 text-primary" />
+                    </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{student.name}</h3>
                       <p className="text-sm text-muted-foreground">Roll No: {student.roll_no}</p>

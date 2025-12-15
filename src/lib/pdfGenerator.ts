@@ -3,7 +3,6 @@ interface StudentInfo {
   rollNo: string;
   class: string;
   section: string;
-  photoUrl?: string | null;
 }
 
 interface ResultData {
@@ -58,12 +57,11 @@ export async function generateMarksheetPDF(data: MarksheetData): Promise<void> {
     .school-name { font-size: 28px; font-weight: bold; margin-bottom: 5px; }
     .school-address { font-size: 14px; color: #666; margin-bottom: 15px; }
     .marksheet-title { font-size: 22px; font-weight: bold; text-transform: uppercase; background: #f0f0f0; padding: 10px; margin: 20px 0; }
-    .student-info { display: grid; grid-template-columns: 1fr 150px; gap: 20px; margin-bottom: 20px; }
+    .student-info { margin-bottom: 20px; }
     .info-table { width: 100%; }
     .info-row { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; }
     .info-label { font-weight: bold; width: 150px; }
     .info-value { flex: 1; }
-    .student-photo { width: 120px; height: 140px; border: 2px solid #333; object-fit: cover; }
     .results-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
     .results-table th, .results-table td { border: 1px solid #333; padding: 10px; text-align: center; }
     .results-table th { background: #f0f0f0; font-weight: bold; }
@@ -108,7 +106,6 @@ export async function generateMarksheetPDF(data: MarksheetData): Promise<void> {
           <div class="info-value">${data.student.section}</div>
         </div>
       </div>
-      ${data.student.photoUrl ? `<img src="${data.student.photoUrl}" class="student-photo" alt="Student Photo" />` : '<div class="student-photo" style="display: flex; align-items: center; justify-content: center; background: #f0f0f0;">No Photo</div>'}
     </div>
 
     <table class="results-table">
