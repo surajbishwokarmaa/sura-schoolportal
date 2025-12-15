@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Upload, Download, Users, GraduationCap, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, Download, Users, GraduationCap, AlertCircle, FileSpreadsheet } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 interface UploadSummary {
@@ -15,17 +15,20 @@ interface UploadSummary {
   errors: string[];
 }
 
+const STUDENT_COLUMNS = ['student_name', 'roll_no', 'class', 'section', 'parent_mobile', 'gender', 'dob', 'status'];
+const TEACHER_COLUMNS = ['teacher_name', 'phone_number', 'assigned_class', 'assigned_subject'];
+
+// Batch size for processing large files
+const BATCH_SIZE = 100;
+
 const BulkUploadManagement = () => {
   const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
+  const [processingStatus, setProcessingStatus] = useState("");
 
-  // Required columns for validation
-  const STUDENT_COLUMNS = ['student_name', 'roll_no', 'class', 'section', 'parent_mobile', 'gender', 'dob', 'status'];
-  const TEACHER_COLUMNS = ['teacher_name', 'phone_number', 'assigned_class', 'assigned_subject'];
-
-  const downloadTemplate = (type: 'students' | 'teachers') => {
+  const downloadTemplate = useCallback((type: 'students' | 'teachers') => {
     let headers: string[] = [];
     let sampleData: any[] = [];
     let filename = '';
@@ -54,10 +57,7 @@ const BulkUploadManagement = () => {
       filename = 'teachers_bulk_upload_format.xlsx';
     }
 
-    // Create worksheet with headers in exact order
     const ws = XLSX.utils.json_to_sheet(sampleData, { header: headers });
-    
-    // Set column widths for better readability
     const colWidths = headers.map(h => ({ wch: Math.max(h.length + 5, 20) }));
     ws['!cols'] = colWidths;
 
@@ -69,29 +69,74 @@ const BulkUploadManagement = () => {
       title: "Excel Format Downloaded",
       description: `Use this exact format for uploading ${type}. Delete the sample row before uploading.`,
     });
-  };
+  }, []);
 
-  const validateColumns = (uploadedColumns: string[], requiredColumns: string[]): { valid: boolean; missing: string[] } => {
+  const validateColumns = useCallback((uploadedColumns: string[], requiredColumns: string[]): { valid: boolean; missing: string[] } => {
     const normalizedUploaded = uploadedColumns.map(c => c.toString().toLowerCase().trim());
     const missing = requiredColumns.filter(col => !normalizedUploaded.includes(col.toLowerCase()));
     return { valid: missing.length === 0, missing };
-  };
+  }, []);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'students' | 'teachers') => {
+  // Process data in batches for better performance
+  const processBatches = useCallback(async (jsonData: any[], type: 'students' | 'teachers') => {
+    const totalRecords = jsonData.length;
+    const batches = Math.ceil(totalRecords / BATCH_SIZE);
+    let totalAdded = 0;
+    let totalSkipped = 0;
+    const allErrors: string[] = [];
+
+    for (let i = 0; i < batches; i++) {
+      const start = i * BATCH_SIZE;
+      const end = Math.min(start + BATCH_SIZE, totalRecords);
+      const batch = jsonData.slice(start, end);
+
+      setProcessingStatus(`Processing batch ${i + 1}/${batches} (${start + 1}-${end} of ${totalRecords})`);
+      setUploadProgress(30 + Math.floor((i / batches) * 60));
+
+      try {
+        const { data: validationResult, error } = await supabase.functions.invoke('process-bulk-upload', {
+          body: { data: batch, type }
+        });
+
+        if (error) throw error;
+
+        totalAdded += validationResult.summary?.added || 0;
+        totalSkipped += validationResult.summary?.skipped || 0;
+        if (validationResult.summary?.errors) {
+          allErrors.push(...validationResult.summary.errors.slice(0, 5)); // Limit errors per batch
+        }
+      } catch (error: any) {
+        allErrors.push(`Batch ${i + 1} failed: ${error.message}`);
+      }
+
+      // Small delay between batches to prevent overwhelming the server
+      if (i < batches - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    return {
+      total: totalRecords,
+      added: totalAdded,
+      skipped: totalSkipped,
+      errors: allErrors.slice(0, 20) // Limit total errors shown
+    };
+  }, []);
+
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>, type: 'students' | 'teachers') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
+    // Increased file size limit for larger datasets (25MB)
+    if (file.size > 25 * 1024 * 1024) {
       toast({
         title: "File Too Large",
-        description: "Please upload a file smaller than 10MB.",
+        description: "Please upload a file smaller than 25MB.",
         variant: "destructive",
       });
       return;
     }
 
-    // Check file type
     const validTypes = ['.xlsx', '.xls', '.csv'];
     const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
     if (!validTypes.includes(fileExt)) {
@@ -104,14 +149,17 @@ const BulkUploadManagement = () => {
     }
 
     setIsUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(5);
     setUploadSummary(null);
+    setProcessingStatus("Reading file...");
 
     try {
-      // Read file
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
+          setProcessingStatus("Parsing Excel data...");
+          setUploadProgress(15);
+
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
@@ -122,7 +170,13 @@ const BulkUploadManagement = () => {
             throw new Error("The uploaded file is empty. Please add data and try again.");
           }
 
-          // Validate column structure
+          if (jsonData.length > 3000) {
+            throw new Error("Maximum 3000 records allowed per upload. Please split your file.");
+          }
+
+          setProcessingStatus(`Found ${jsonData.length} records. Validating columns...`);
+          setUploadProgress(25);
+
           const uploadedColumns = Object.keys(jsonData[0] as object);
           const requiredColumns = type === 'students' ? STUDENT_COLUMNS : TEACHER_COLUMNS;
           const validation = validateColumns(uploadedColumns, requiredColumns);
@@ -134,21 +188,16 @@ const BulkUploadManagement = () => {
             );
           }
 
-          setUploadProgress(30);
-
-          // Process with AI validation
-          const { data: validationResult, error } = await supabase.functions.invoke('process-bulk-upload', {
-            body: { data: jsonData, type }
-          });
-
-          if (error) throw error;
+          // Process in batches for large files
+          const summary = await processBatches(jsonData, type);
 
           setUploadProgress(100);
-          setUploadSummary(validationResult.summary);
+          setProcessingStatus("Complete!");
+          setUploadSummary(summary);
 
           toast({
             title: "Upload Complete",
-            description: `Successfully processed ${validationResult.summary.added} ${type}.`,
+            description: `Successfully processed ${summary.added} ${type} out of ${summary.total} records.`,
           });
 
         } catch (error: any) {
@@ -161,6 +210,7 @@ const BulkUploadManagement = () => {
         } finally {
           setIsUploading(false);
           setUploadProgress(0);
+          setProcessingStatus("");
         }
       };
 
@@ -174,69 +224,82 @@ const BulkUploadManagement = () => {
       });
       setIsUploading(false);
       setUploadProgress(0);
+      setProcessingStatus("");
     }
-  };
+
+    // Reset input
+    event.target.value = '';
+  }, [validateColumns, processBatches]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/admin')}>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-3 sm:p-4 md:p-6 lg:p-8">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+        {/* Header - Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="w-fit">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Back</span>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">📤 Bulk Data Upload</h1>
-            <p className="text-muted-foreground">Upload students and teachers data from Excel/CSV files</p>
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6" />
+              Bulk Data Upload
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Upload up to 2500+ records from Excel/CSV files
+            </p>
           </div>
         </div>
 
-        {/* Upload Progress */}
+        {/* Upload Progress - Responsive */}
         {isUploading && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Processing Upload...</CardTitle>
+          <Card className="border-primary/20">
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="text-base sm:text-lg">Processing Upload...</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Progress value={uploadProgress} className="w-full" />
-              <p className="text-sm text-muted-foreground mt-2">
-                {uploadProgress < 30 ? "Reading file..." : uploadProgress < 70 ? "Validating with AI..." : "Saving data..."}
+            <CardContent className="space-y-2">
+              <Progress value={uploadProgress} className="w-full h-2 sm:h-3" />
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {processingStatus || "Initializing..."}
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                {uploadProgress}% complete
               </p>
             </CardContent>
           </Card>
         )}
 
-        {/* Upload Summary */}
+        {/* Upload Summary - Responsive Grid */}
         {uploadSummary && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload Summary</CardTitle>
+          <Card className="border-green-500/20 bg-green-500/5">
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="text-base sm:text-lg">Upload Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">{uploadSummary.total}</p>
-                  <p className="text-sm text-muted-foreground">Total Records</p>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="text-center p-2 sm:p-3 bg-background rounded-lg">
+                  <p className="text-lg sm:text-2xl font-bold text-primary">{uploadSummary.total}</p>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">Total</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">{uploadSummary.added}</p>
-                  <p className="text-sm text-muted-foreground">Added</p>
+                <div className="text-center p-2 sm:p-3 bg-background rounded-lg">
+                  <p className="text-lg sm:text-2xl font-bold text-green-600">{uploadSummary.added}</p>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">Added</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-yellow-600">{uploadSummary.skipped}</p>
-                  <p className="text-sm text-muted-foreground">Skipped</p>
+                <div className="text-center p-2 sm:p-3 bg-background rounded-lg">
+                  <p className="text-lg sm:text-2xl font-bold text-yellow-600">{uploadSummary.skipped}</p>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">Skipped</p>
                 </div>
               </div>
               {uploadSummary.errors.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="font-semibold flex items-center gap-2 text-destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    Errors:
+                <div className="mt-3 p-2 sm:p-3 bg-destructive/10 rounded-lg">
+                  <h4 className="font-semibold flex items-center gap-2 text-destructive text-xs sm:text-sm">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Errors ({uploadSummary.errors.length}):
                   </h4>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-2">
+                  <ul className="list-disc list-inside text-[10px] sm:text-xs text-muted-foreground mt-2 max-h-32 overflow-y-auto">
                     {uploadSummary.errors.map((error, idx) => (
-                      <li key={idx}>{error}</li>
+                      <li key={idx} className="truncate">{error}</li>
                     ))}
                   </ul>
                 </div>
@@ -245,100 +308,121 @@ const BulkUploadManagement = () => {
           </Card>
         )}
 
-        {/* Students Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Upload Students Data
-            </CardTitle>
-            <CardDescription>
-              Upload student records from Excel or CSV file. Duplicates will be automatically skipped.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                onClick={() => downloadTemplate('students')}
-                disabled={isUploading}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download Template
-              </Button>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={(e) => handleFileUpload(e, 'students')}
+        {/* Upload Cards - Responsive */}
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+          {/* Students Upload */}
+          <Card className="h-fit">
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                Upload Students
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Upload student records. Duplicates auto-skipped.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 sm:space-y-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => downloadTemplate('students')}
                   disabled={isUploading}
-                />
-                <Button disabled={isUploading} asChild>
-                  <span>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Students File
-                  </span>
+                  className="flex-1 text-xs sm:text-sm"
+                >
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  Download Format
                 </Button>
-              </label>
-            </div>
-            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-              <p className="font-medium mb-1">📋 Required columns (exact names):</p>
-              <code className="text-xs bg-background px-2 py-1 rounded">
-                {STUDENT_COLUMNS.join(' | ')}
-              </code>
-              <p className="mt-2"><strong>Accepted formats:</strong> .xlsx, .xls, .csv (Max 10MB, up to 1400+ records)</p>
-            </div>
-          </CardContent>
-        </Card>
+                <label className="cursor-pointer flex-1">
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => handleFileUpload(e, 'students')}
+                    disabled={isUploading}
+                  />
+                  <Button disabled={isUploading} size="sm" className="w-full text-xs sm:text-sm" asChild>
+                    <span>
+                      <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      Upload File
+                    </span>
+                  </Button>
+                </label>
+              </div>
+              <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-1">
+                <p className="font-medium">📋 Required columns:</p>
+                <div className="flex flex-wrap gap-1">
+                  {STUDENT_COLUMNS.map(col => (
+                    <code key={col} className="text-[10px] sm:text-xs bg-background px-1.5 py-0.5 rounded">
+                      {col}
+                    </code>
+                  ))}
+                </div>
+                <p className="text-[10px] sm:text-xs pt-1">
+                  <strong>Max:</strong> 2500+ records | <strong>Size:</strong> 25MB | <strong>Format:</strong> .xlsx, .xls, .csv
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Teachers Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5" />
-              Upload Teachers Data
-            </CardTitle>
-            <CardDescription>
-              Upload teacher records from Excel or CSV file. Duplicates will be automatically skipped.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                onClick={() => downloadTemplate('teachers')}
-                disabled={isUploading}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download Template
-              </Button>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={(e) => handleFileUpload(e, 'teachers')}
+          {/* Teachers Upload */}
+          <Card className="h-fit">
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                Upload Teachers
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Upload teacher records. Duplicates auto-skipped.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 sm:space-y-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => downloadTemplate('teachers')}
                   disabled={isUploading}
-                />
-                <Button disabled={isUploading} asChild>
-                  <span>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Teachers File
-                  </span>
+                  className="flex-1 text-xs sm:text-sm"
+                >
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  Download Format
                 </Button>
-              </label>
-            </div>
-            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-              <p className="font-medium mb-1">📋 Required columns (exact names):</p>
-              <code className="text-xs bg-background px-2 py-1 rounded">
-                {TEACHER_COLUMNS.join(' | ')}
-              </code>
-              <p className="mt-2"><strong>Accepted formats:</strong> .xlsx, .xls, .csv (Max 10MB, up to 1400+ records)</p>
-              <p className="mt-1 text-xs">💡 For multiple classes/subjects, separate with commas (e.g., "Grade 5, Grade 6")</p>
-            </div>
-          </CardContent>
-        </Card>
+                <label className="cursor-pointer flex-1">
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => handleFileUpload(e, 'teachers')}
+                    disabled={isUploading}
+                  />
+                  <Button disabled={isUploading} size="sm" className="w-full text-xs sm:text-sm" asChild>
+                    <span>
+                      <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      Upload File
+                    </span>
+                  </Button>
+                </label>
+              </div>
+              <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-1">
+                <p className="font-medium">📋 Required columns:</p>
+                <div className="flex flex-wrap gap-1">
+                  {TEACHER_COLUMNS.map(col => (
+                    <code key={col} className="text-[10px] sm:text-xs bg-background px-1.5 py-0.5 rounded">
+                      {col}
+                    </code>
+                  ))}
+                </div>
+                <p className="text-[10px] sm:text-xs pt-1">
+                  <strong>Max:</strong> 2500+ records | <strong>Size:</strong> 25MB
+                </p>
+                <p className="text-[10px] sm:text-xs">
+                  💡 Multiple classes/subjects: separate with commas
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
