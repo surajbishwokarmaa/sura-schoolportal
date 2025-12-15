@@ -387,6 +387,11 @@ serve(async (req) => {
       });
     }
 
+    // Sanitize AI suggestions before returning to prevent XSS
+    const sanitizedSuggestions = (validation.suggestions || []).map((s: any) => 
+      typeof s === 'string' ? sanitizeInput(s, 500) : sanitizeInput(String(s), 500)
+    );
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -397,7 +402,7 @@ serve(async (req) => {
           errors: summary.errors,
           credentials: summary.credentials
         },
-        aiSuggestions: validation.suggestions 
+        aiSuggestions: sanitizedSuggestions 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
