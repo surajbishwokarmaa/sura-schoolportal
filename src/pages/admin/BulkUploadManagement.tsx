@@ -15,7 +15,7 @@ interface UploadSummary {
   errors: string[];
 }
 
-const STUDENT_COLUMNS = ['student_name', 'roll_no', 'class', 'section', 'parent_mobile', 'gender', 'dob', 'status'];
+const STUDENT_COLUMNS = ['student_name', 'roll_no', 'class', 'section', 'parent_mobile', 'gender', 'dob'];
 const TEACHER_COLUMNS = ['teacher_name', 'phone_number', 'assigned_class', 'assigned_subject'];
 
 // Batch size for processing large files
@@ -42,8 +42,7 @@ const BulkUploadManagement = () => {
         'section': 'A',
         'parent_mobile': 9812345678,
         'gender': 'Female',
-        'dob': '2014-05-12',
-        'status': 'Active'
+        'dob': '2014-05-12'
       }];
       filename = 'students_bulk_upload_format.xlsx';
     } else {
