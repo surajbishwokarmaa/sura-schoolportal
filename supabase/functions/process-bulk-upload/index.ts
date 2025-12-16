@@ -123,7 +123,7 @@ serve(async (req) => {
       added: 0,
       skipped: 0,
       errors: [] as string[],
-      credentials: [] as { name: string; email: string; password: string }[]
+      credentials: [] as { name: string; loginId: string; password: string }[]
     };
 
     if (type === 'students') {
@@ -275,7 +275,7 @@ serve(async (req) => {
             summary.added++;
             summary.credentials.push({
               name: studentName,
-              email: studentEmail,
+              loginId: cleanedPhone,
               password: studentPassword,
             });
           }
@@ -418,7 +418,7 @@ serve(async (req) => {
             summary.added++;
             summary.credentials.push({
               name: teacherName,
-              email: teacherEmail,
+              loginId: cleanedPhone,
               password: teacherPassword,
             });
           }

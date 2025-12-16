@@ -13,7 +13,7 @@ interface UploadSummary {
   added: number;
   skipped: number;
   errors: string[];
-  credentials?: { name: string; email: string; password: string }[];
+  credentials?: { name: string; loginId: string; password: string }[];
 }
 
 // Column definitions matching edge function expectations
@@ -110,7 +110,7 @@ const BulkUploadManagement = () => {
     let totalAdded = 0;
     let totalSkipped = 0;
     const allErrors: string[] = [];
-    const allCredentials: { name: string; email: string; password: string }[] = [];
+    const allCredentials: { name: string; loginId: string; password: string }[] = [];
 
     for (let i = 0; i < batches; i++) {
       const start = i * BATCH_SIZE;
@@ -321,7 +321,7 @@ const BulkUploadManagement = () => {
     if (!uploadSummary?.credentials?.length) return;
     
     const text = uploadSummary.credentials.map(c => 
-      `Name: ${c.name}\nEmail: ${c.email}\nPassword: ${c.password}\n`
+      `Name: ${c.name}\nLogin ID: ${c.loginId}\nPassword: ${c.password}\n`
     ).join('\n---\n');
     
     navigator.clipboard.writeText(text);
@@ -420,7 +420,7 @@ const BulkUploadManagement = () => {
                       {uploadSummary.credentials.map((cred, idx) => (
                         <div key={idx} className="bg-background p-2 rounded border">
                           <p><strong>{cred.name}</strong></p>
-                          <p className="text-muted-foreground">Email: {cred.email}</p>
+                          <p className="text-muted-foreground">Login ID: {cred.loginId}</p>
                           <p className="text-muted-foreground">Password: {cred.password}</p>
                         </div>
                       ))}
