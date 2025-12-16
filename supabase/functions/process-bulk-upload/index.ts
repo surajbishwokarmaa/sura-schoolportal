@@ -191,13 +191,12 @@ serve(async (req) => {
             user_metadata: {
               full_name: studentName,
               role: 'student',
-              phone: cleanedPhone
-            }
+              phone: cleanedPhone,
+            },
           });
 
-          if (authError) {
-            // If user already exists, try to get existing user
-            if (authError.message?.includes('already') || authError.message?.includes('duplicate')) {
+          if (authError || !authUser?.user) {
+            if (authError?.message?.includes('already') || authError?.message?.includes('duplicate')) {
               summary.errors.push(`Roll ${rollNo}: Account already exists with email ${studentEmail}`);
             } else {
               summary.errors.push(mapErrorMessage(authError, `Roll ${rollNo}`));
@@ -205,6 +204,36 @@ serve(async (req) => {
             summary.skipped++;
             continue;
           }
+
+          // Ensure profile + role exist (students.user_id FK references profiles.id)
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert(
+              {
+                id: authUser.user.id,
+                full_name: studentName,
+                phone: cleanedPhone,
+                role: 'student',
+                photo_url: null,
+              },
+              { onConflict: 'id' }
+            );
+
+          if (profileError) {
+            summary.errors.push(`Roll ${rollNo}: Failed to create profile`);
+            try {
+              await supabase.auth.admin.deleteUser(authUser.user.id);
+            } catch (e) {
+              console.error('Failed to cleanup auth user:', e);
+            }
+            summary.skipped++;
+            continue;
+          }
+
+          // Keep user_roles in sync (used throughout app for permissions)
+          await supabase
+            .from('user_roles')
+            .upsert({ user_id: authUser.user.id, role: 'student' }, { onConflict: 'user_id,role' });
 
           // Determine gender value
           let genderValue: 'male' | 'female' | 'other' = 'other';
@@ -229,16 +258,17 @@ serve(async (req) => {
               address: address || null,
               parent_name: parentName || null,
               is_active: true,
-              graduation_status: 'active'
+              graduation_status: 'active',
             });
 
           if (insertError) {
             summary.errors.push(mapErrorMessage(insertError, `Roll ${rollNo}`));
-            // Try to clean up auth user if student insert failed
+            // Cleanup created auth user + profile to avoid orphans
             try {
+              await supabase.from('profiles').delete().eq('id', authUser.user.id);
               await supabase.auth.admin.deleteUser(authUser.user.id);
             } catch (e) {
-              console.error('Failed to cleanup auth user:', e);
+              console.error('Failed to cleanup after student insert error:', e);
             }
             summary.skipped++;
           } else {
@@ -246,7 +276,7 @@ serve(async (req) => {
             summary.credentials.push({
               name: studentName,
               email: studentEmail,
-              password: studentPassword
+              password: studentPassword,
             });
           }
         } catch (error: any) {
@@ -319,12 +349,12 @@ serve(async (req) => {
             user_metadata: {
               full_name: teacherName,
               role: 'teacher',
-              phone: cleanedPhone
-            }
+              phone: cleanedPhone,
+            },
           });
 
-          if (authError) {
-            if (authError.message?.includes('already') || authError.message?.includes('duplicate')) {
+          if (authError || !authUser?.user) {
+            if (authError?.message?.includes('already') || authError?.message?.includes('duplicate')) {
               summary.errors.push(`${teacherName}: Account already exists`);
             } else {
               summary.errors.push(mapErrorMessage(authError, teacherName));
@@ -332,6 +362,35 @@ serve(async (req) => {
             summary.skipped++;
             continue;
           }
+
+          // Ensure profile + role exist (teachers.user_id FK references profiles.id)
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert(
+              {
+                id: authUser.user.id,
+                full_name: teacherName,
+                phone: cleanedPhone,
+                role: 'teacher',
+                photo_url: null,
+              },
+              { onConflict: 'id' }
+            );
+
+          if (profileError) {
+            summary.errors.push(`${teacherName}: Failed to create profile`);
+            try {
+              await supabase.auth.admin.deleteUser(authUser.user.id);
+            } catch (e) {
+              console.error('Failed to cleanup auth user:', e);
+            }
+            summary.skipped++;
+            continue;
+          }
+
+          await supabase
+            .from('user_roles')
+            .upsert({ user_id: authUser.user.id, role: 'teacher' }, { onConflict: 'user_id,role' });
 
           // Insert teacher record
           const { error: insertError } = await supabase
@@ -342,16 +401,17 @@ serve(async (req) => {
               email: teacherEmail,
               phone: cleanedPhone,
               subjects: subjectsArray,
-              classes_assigned: classesArray
+              classes_assigned: classesArray,
             });
 
           if (insertError) {
             summary.errors.push(mapErrorMessage(insertError, teacherName));
-            // Try to clean up auth user if teacher insert failed
+            // Cleanup created auth user + profile to avoid orphans
             try {
+              await supabase.from('profiles').delete().eq('id', authUser.user.id);
               await supabase.auth.admin.deleteUser(authUser.user.id);
             } catch (e) {
-              console.error('Failed to cleanup auth user:', e);
+              console.error('Failed to cleanup after teacher insert error:', e);
             }
             summary.skipped++;
           } else {
@@ -359,7 +419,7 @@ serve(async (req) => {
             summary.credentials.push({
               name: teacherName,
               email: teacherEmail,
-              password: teacherPassword
+              password: teacherPassword,
             });
           }
         } catch (error: any) {

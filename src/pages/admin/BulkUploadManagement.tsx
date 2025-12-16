@@ -133,14 +133,15 @@ const BulkUploadManagement = () => {
         }
 
         if (result?.summary) {
-          totalAdded += result.summary.added || 0;
-          totalSkipped += result.summary.skipped || 0;
-          if (result.summary.errors?.length > 0) {
-            allErrors.push(...result.summary.errors.slice(0, 10));
-          }
-          if (result.summary.credentials?.length > 0) {
-            allCredentials.push(...result.summary.credentials);
-          }
+      totalAdded += result.summary.added || 0;
+      // Keep internal skipped count for backend batching, but we won't show it in UI
+      totalSkipped += result.summary.skipped || 0;
+      if (result.summary.errors?.length > 0) {
+        allErrors.push(...result.summary.errors.slice(0, 10));
+      }
+      if (result.summary.credentials?.length > 0) {
+        allCredentials.push(...result.summary.credentials);
+      }
         }
       } catch (error: any) {
         console.error('Batch processing error:', error);
@@ -259,11 +260,14 @@ const BulkUploadManagement = () => {
               title: "Upload Successful!",
               description: `Added ${summary.added} ${type} out of ${summary.total} records.`,
             });
-          } else if (summary.skipped === summary.total) {
+          } else {
             toast({
-              title: "No New Records",
-              description: `All ${summary.total} records were skipped (duplicates or errors).`,
-              variant: "destructive",
+              title: "Upload Completed",
+              description: summary.errors.length
+                ? `No records were added. Please check the error list below.`
+                : `No records were added. Please verify the Excel data and try again.`,
+              variant: summary.errors.length ? "destructive" : undefined,
+              duration: 8000,
             });
           }
 
@@ -383,7 +387,7 @@ const BulkUploadManagement = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 <div className="text-center p-2 sm:p-3 bg-background rounded-lg">
                   <p className="text-lg sm:text-2xl font-bold text-primary">{uploadSummary.total}</p>
                   <p className="text-[10px] sm:text-sm text-muted-foreground">Total</p>
@@ -391,10 +395,6 @@ const BulkUploadManagement = () => {
                 <div className="text-center p-2 sm:p-3 bg-background rounded-lg">
                   <p className="text-lg sm:text-2xl font-bold text-green-600">{uploadSummary.added}</p>
                   <p className="text-[10px] sm:text-sm text-muted-foreground">Added</p>
-                </div>
-                <div className="text-center p-2 sm:p-3 bg-background rounded-lg">
-                  <p className="text-lg sm:text-2xl font-bold text-yellow-600">{uploadSummary.skipped}</p>
-                  <p className="text-[10px] sm:text-sm text-muted-foreground">Skipped</p>
                 </div>
               </div>
 
