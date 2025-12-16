@@ -42,8 +42,8 @@ const BulkUploadManagement = () => {
         {
           'student_name': 'Sita Sharma (DELETE THIS ROW)',
           'roll_no': '1',
-          'class': 'Grade 5',
-          'section': 'A',
+          'class': 'Class 5',
+          'section': 'Lotus',
           'parent_mobile': '9812345678',
           'gender': 'Female',
           'dob': '2014-05-12'
@@ -51,11 +51,20 @@ const BulkUploadManagement = () => {
         {
           'student_name': 'Ram Thapa',
           'roll_no': '2',
-          'class': 'Grade 5',
-          'section': 'A',
+          'class': 'Class 10',
+          'section': 'Rose',
           'parent_mobile': '9807470285',
           'gender': 'Male',
-          'dob': '2014-08-20'
+          'dob': '2010-08-20'
+        },
+        {
+          'student_name': 'Hari Prasad',
+          'roll_no': '1',
+          'class': 'Class 11',
+          'section': 'Lotus',
+          'parent_mobile': '9841234567',
+          'gender': 'Male',
+          'dob': '2008-03-15'
         }
       ];
       filename = 'students_bulk_upload_format.xlsx';
@@ -65,15 +74,15 @@ const BulkUploadManagement = () => {
         {
           'teacher_name': 'Ramesh Thapa (DELETE THIS ROW)',
           'phone_number': '9800001111',
-          'assigned_class': 'Grade 5, Grade 6',
+          'assigned_class': 'Class 5, Class 6',
           'assigned_subject': 'Math, Science',
           'password': 'mypassword123'
         },
         {
           'teacher_name': 'Gita Sharma',
           'phone_number': '9812223333',
-          'assigned_class': 'Grade 7, Grade 8',
-          'assigned_subject': 'English, Social Studies',
+          'assigned_class': 'Class 11, Class 12',
+          'assigned_subject': 'Physics, Chemistry',
           'password': 'teachergita456'
         }
       ];
