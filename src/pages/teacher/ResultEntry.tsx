@@ -154,8 +154,8 @@ const ResultEntry = () => {
     try {
       const { data, error } = await supabase
         .from('classes')
-        .select('id, name, sections')
-        .order('name');
+        .select('id, name, sections, display_order')
+        .order('display_order', { ascending: true });
       
       if (error) throw error;
       
