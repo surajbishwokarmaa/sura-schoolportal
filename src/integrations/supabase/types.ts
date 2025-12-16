@@ -47,6 +47,7 @@ export type Database = {
       classes: {
         Row: {
           created_at: string
+          display_order: number | null
           id: string
           name: string
           school_level: number
@@ -55,6 +56,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          display_order?: number | null
           id?: string
           name: string
           school_level?: number
@@ -63,6 +65,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          display_order?: number | null
           id?: string
           name?: string
           school_level?: number

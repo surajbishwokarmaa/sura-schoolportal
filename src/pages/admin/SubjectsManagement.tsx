@@ -76,8 +76,8 @@ const SubjectsManagement = () => {
   const fetchClasses = async () => {
     const { data, error } = await supabase
       .from('classes')
-      .select('id, name')
-      .order('name');
+      .select('id, name, display_order')
+      .order('display_order', { ascending: true });
 
     if (error) {
       toast({ title: 'Error', description: 'Failed to fetch classes', variant: 'destructive' });

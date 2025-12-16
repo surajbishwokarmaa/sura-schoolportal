@@ -139,7 +139,7 @@ const StudentsManagement = () => {
     const { data, error } = await supabase
       .from('classes')
       .select('*')
-      .order('name');
+      .order('display_order', { ascending: true });
 
     if (error) {
       toast({
