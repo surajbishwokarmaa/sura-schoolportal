@@ -80,7 +80,7 @@ const AdminAuth = () => {
         <Button
           variant="ghost"
           className="mb-4 sm:mb-6"
-          onClick={() => navigate('/select-role')}
+          onClick={() => navigate('/')}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Role Selection
