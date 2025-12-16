@@ -161,22 +161,27 @@ serve(async (req) => {
             continue;
           }
 
-          // Check for existing student by roll_no AND class combination
+          // Check for existing student by roll_no AND class AND section combination
           const { data: existing } = await supabase
             .from('students')
             .select('id')
             .eq('roll_no', rollNo)
             .eq('class', classValue)
+            .eq('section', section.toUpperCase())
             .maybeSingle();
 
           if (existing) {
+            summary.errors.push(`Roll ${rollNo} in ${classValue} ${section}: Already exists`);
             summary.skipped++;
             continue;
           }
 
           // Generate universal student password: "sura" + first2 + last2
           const studentPassword = generateStudentPassword(cleanedPhone);
-          const studentEmail = `student${rollNo.replace(/\s/g, '')}@school.edu.np`;
+          
+          // Make email unique by including class and roll (siblings can have same parent phone)
+          const classSlug = classValue.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const studentEmail = `student_${classSlug}_${rollNo.replace(/\s/g, '')}@school.edu.np`;
 
           // Create auth user
           const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
