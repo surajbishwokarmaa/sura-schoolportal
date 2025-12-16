@@ -206,8 +206,9 @@ const StudentsManagement = () => {
       
       const password = `sura${cleanedPhone.substring(0, 2)}${cleanedPhone.substring(cleanedPhone.length - 2)}`;
       
-      // Make email unique by combining roll number
-      const studentEmail = `student${formData.rollNo.trim().replace(/\s/g, '')}@school.edu.np`;
+      // Make email unique by including class and roll (supports siblings)
+      const classSlug = formData.class.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const studentEmail = `student_${classSlug}_${formData.rollNo.trim().replace(/\s/g, '')}@school.edu.np`;
 
       console.log('Creating student account:', { 
         email: studentEmail, 
