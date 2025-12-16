@@ -6,20 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate secure random password
-function generateSecurePassword(length = 12): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
-  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
+// Generate student password based on parent mobile: "sura" + first 2 digits + last 2 digits
+function generateStudentPassword(parentMobile: string): string {
+  const cleaned = parentMobile.replace(/\D/g, '');
+  if (cleaned.length < 4) return 'sura0000';
+  const first2 = cleaned.substring(0, 2);
+  const last2 = cleaned.substring(cleaned.length - 2);
+  return `sura${first2}${last2}`;
 }
 
 // Sanitize text input to prevent XSS and injection
-function sanitizeInput(input: string | undefined | null, maxLength = 255): string {
-  if (!input) return '';
+function sanitizeInput(input: string | number | undefined | null, maxLength = 255): string {
+  if (input === undefined || input === null) return '';
   return String(input)
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/[<>'";&]/g, '') // Remove dangerous characters
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>'";&]/g, '')
     .trim()
     .slice(0, maxLength);
 }
@@ -28,12 +29,6 @@ function sanitizeInput(input: string | undefined | null, maxLength = 255): strin
 function validatePhone(phone: string): boolean {
   const cleaned = phone.replace(/\D/g, '');
   return cleaned.length >= 10 && cleaned.length <= 15;
-}
-
-// Validate email format
-function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) && email.length <= 255;
 }
 
 // Map generic error messages
@@ -50,7 +45,6 @@ function mapErrorMessage(error: any, context: string): string {
     return `${context}: Password does not meet requirements`;
   }
   
-  // Log detailed error server-side only
   console.error(`Detailed error for ${context}:`, error);
   return `${context}: Unable to process record`;
 }
@@ -73,7 +67,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     
     // Create client with user's token to verify admin role
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -110,127 +103,110 @@ serve(async (req) => {
     // Validate request data
     if (!Array.isArray(requestData) || requestData.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Invalid data format' }),
+        JSON.stringify({ error: 'Invalid data format - no data provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     if (requestData.length > 500) {
       return new Response(
-        JSON.stringify({ error: 'Maximum 500 records allowed per upload' }),
+        JSON.stringify({ error: 'Maximum 500 records per batch. System will process in batches automatically.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     console.log(`Admin ${user.id} processing ${type} upload with ${requestData.length} records`);
 
-    // Step 1: Validate and map columns using Lovable AI
-    const aiValidationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a data validation assistant for school management. Analyze the uploaded data and map column headers to expected fields. Return a JSON object with: { "isValid": boolean, "mappedData": array, "suggestions": array of corrections made, "errors": array of validation errors }`
-          },
-          {
-            role: 'user',
-            content: `Validate and map this ${type} data: ${JSON.stringify(requestData.slice(0, 5))}. 
-            Expected fields for ${type === 'students' ? 'students: Roll No, Full Name, Gender, Date of Birth, Class, Section, Phone (Family), Address, Parent Name' : 'teachers: Full Name, Gender, Subject, Class Assigned, Phone, Email, Password, Address'}. 
-            Map similar columns (e.g., "Student Name" -> "Full Name"). Return valid JSON only.`
-          }
-        ],
-      }),
-    });
-
-    let validation = { isValid: true, mappedData: requestData, suggestions: [], errors: [] as string[] };
-    
-    if (aiValidationResponse.ok) {
-      try {
-        const aiResult = await aiValidationResponse.json();
-        const aiContent = aiResult.choices[0]?.message?.content;
-        if (aiContent) {
-          validation = JSON.parse(aiContent.replace(/```json|```/g, '').trim());
-        }
-      } catch {
-        console.log('AI validation parsing failed, using raw data');
-      }
-    }
-
-    console.log('AI Validation completed');
-
-    // Step 2: Process data based on type
+    // Process data based on type
     const summary = {
       total: requestData.length,
       added: 0,
       skipped: 0,
-      errors: validation.errors || [],
+      errors: [] as string[],
       credentials: [] as { name: string; email: string; password: string }[]
     };
 
     if (type === 'students') {
       for (const row of requestData) {
         try {
-          // Map and sanitize columns
-          const rollNo = sanitizeInput(row['Roll No'] || row['roll_no'] || row['Roll Number'], 20);
-          const fullName = sanitizeInput(row['Full Name'] || row['full_name'] || row['Name'] || row['Student Name'], 100);
-          const gender = sanitizeInput((row['Gender'] || row['gender'] || ''), 10).toLowerCase();
-          const dob = row['Date of Birth'] || row['dob'] || row['DOB'];
-          const classValue = sanitizeInput(row['Class'] || row['class'], 20);
-          const section = sanitizeInput(row['Section'] || row['section'], 10);
-          const parentPhone = sanitizeInput(row['Phone (Family)'] || row['parent_phone'] || row['Phone'], 20);
-          const address = sanitizeInput(row['Address'] || row['address'], 500);
-          const parentName = sanitizeInput(row['Parent Name'] || row['parent_name'], 100);
+          // Map columns from frontend format (case-insensitive)
+          const studentName = sanitizeInput(row['student_name'] || row['Student_Name'] || row['STUDENT_NAME'] || row['name'], 100);
+          const rollNo = sanitizeInput(row['roll_no'] || row['Roll_No'] || row['ROLL_NO'] || row['rollno'], 50);
+          const classValue = sanitizeInput(row['class'] || row['Class'] || row['CLASS'], 20);
+          const section = sanitizeInput(row['section'] || row['Section'] || row['SECTION'], 10);
+          const parentMobile = sanitizeInput(row['parent_mobile'] || row['Parent_Mobile'] || row['PARENT_MOBILE'] || row['phone'], 20);
+          const gender = sanitizeInput(row['gender'] || row['Gender'] || row['GENDER'], 10).toLowerCase();
+          const dob = row['dob'] || row['DOB'] || row['Dob'] || row['date_of_birth'] || null;
+          const parentName = sanitizeInput(row['parent_name'] || row['Parent_Name'] || row['PARENT_NAME'], 100);
+          const address = sanitizeInput(row['address'] || row['Address'] || row['ADDRESS'], 500);
 
           // Validate required fields
-          if (!rollNo || !fullName || !classValue || !section || !parentPhone) {
-            summary.errors.push(`Roll ${rollNo || 'unknown'}: Missing required fields`);
+          if (!studentName || !rollNo || !classValue || !section || !parentMobile) {
+            const missing = [];
+            if (!studentName) missing.push('student_name');
+            if (!rollNo) missing.push('roll_no');
+            if (!classValue) missing.push('class');
+            if (!section) missing.push('section');
+            if (!parentMobile) missing.push('parent_mobile');
+            summary.errors.push(`Row with roll ${rollNo || 'unknown'}: Missing ${missing.join(', ')}`);
             summary.skipped++;
             continue;
           }
           
-          if (!validatePhone(parentPhone)) {
-            summary.errors.push(`Roll ${rollNo}: Invalid phone number`);
+          // Clean and validate phone
+          const cleanedPhone = parentMobile.replace(/\D/g, '');
+          if (!validatePhone(cleanedPhone)) {
+            summary.errors.push(`Roll ${rollNo}: Invalid phone number "${parentMobile}"`);
             summary.skipped++;
             continue;
           }
 
-          // Check for duplicates
+          // Check for existing student by roll_no AND class combination
           const { data: existing } = await supabase
             .from('students')
             .select('id')
             .eq('roll_no', rollNo)
-            .single();
+            .eq('class', classValue)
+            .maybeSingle();
 
           if (existing) {
             summary.skipped++;
             continue;
           }
 
-          // Generate secure password
-          const securePassword = generateSecurePassword();
-          const studentEmail = `student${rollNo}@school.edu.np`;
+          // Generate universal student password: "sura" + first2 + last2
+          const studentPassword = generateStudentPassword(cleanedPhone);
+          const studentEmail = `student${rollNo.replace(/\s/g, '')}@school.edu.np`;
 
+          // Create auth user
           const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
             email: studentEmail,
-            password: securePassword,
+            password: studentPassword,
             email_confirm: true,
             user_metadata: {
-              full_name: fullName,
+              full_name: studentName,
               role: 'student',
-              phone: parentPhone
+              phone: cleanedPhone
             }
           });
 
           if (authError) {
-            summary.errors.push(mapErrorMessage(authError, `Roll ${rollNo}`));
+            // If user already exists, try to get existing user
+            if (authError.message?.includes('already') || authError.message?.includes('duplicate')) {
+              summary.errors.push(`Roll ${rollNo}: Account already exists with email ${studentEmail}`);
+            } else {
+              summary.errors.push(mapErrorMessage(authError, `Roll ${rollNo}`));
+            }
             summary.skipped++;
             continue;
+          }
+
+          // Determine gender value
+          let genderValue: 'male' | 'female' | 'other' = 'other';
+          if (gender === 'male' || gender === 'm' || gender === 'पुरुष') {
+            genderValue = 'male';
+          } else if (gender === 'female' || gender === 'f' || gender === 'महिला') {
+            genderValue = 'female';
           }
 
           // Insert student record
@@ -238,101 +214,116 @@ serve(async (req) => {
             .from('students')
             .insert({
               user_id: authUser.user.id,
-              name: fullName,
+              name: studentName,
               roll_no: rollNo,
-              gender: gender === 'male' || gender === 'm' ? 'male' : gender === 'female' || gender === 'f' ? 'female' : 'other',
-              dob: dob,
+              gender: genderValue,
+              dob: dob || null,
               class: classValue,
-              section: section,
-              parent_phone: parentPhone,
-              address: address,
-              parent_name: parentName,
-              is_active: true
+              section: section.toUpperCase(),
+              parent_phone: cleanedPhone,
+              address: address || null,
+              parent_name: parentName || null,
+              is_active: true,
+              graduation_status: 'active'
             });
 
           if (insertError) {
             summary.errors.push(mapErrorMessage(insertError, `Roll ${rollNo}`));
+            // Try to clean up auth user if student insert failed
+            try {
+              await supabase.auth.admin.deleteUser(authUser.user.id);
+            } catch (e) {
+              console.error('Failed to cleanup auth user:', e);
+            }
             summary.skipped++;
           } else {
             summary.added++;
             summary.credentials.push({
-              name: fullName,
+              name: studentName,
               email: studentEmail,
-              password: securePassword
+              password: studentPassword
             });
           }
         } catch (error: any) {
           console.error('Row processing error:', error);
-          summary.errors.push('Unable to process a record');
+          summary.errors.push('Unable to process a student record');
           summary.skipped++;
         }
       }
     } else if (type === 'teachers') {
       for (const row of requestData) {
         try {
-          const fullName = sanitizeInput(row['Full Name'] || row['full_name'] || row['Name'], 100);
-          const email = sanitizeInput(row['Email'] || row['email'], 255);
-          const phone = sanitizeInput(row['Phone'] || row['phone'], 20);
-          const address = sanitizeInput(row['Address'] || row['address'], 500);
+          // Map columns from frontend format (case-insensitive)
+          const teacherName = sanitizeInput(row['teacher_name'] || row['Teacher_Name'] || row['TEACHER_NAME'] || row['name'], 100);
+          const phoneNumber = sanitizeInput(row['phone_number'] || row['Phone_Number'] || row['PHONE_NUMBER'] || row['phone'], 20);
+          const assignedClass = sanitizeInput(row['assigned_class'] || row['Assigned_Class'] || row['ASSIGNED_CLASS'] || row['classes'], 200);
+          const assignedSubject = sanitizeInput(row['assigned_subject'] || row['Assigned_Subject'] || row['ASSIGNED_SUBJECT'] || row['subjects'], 200);
+          const password = row['password'] || row['Password'] || row['PASSWORD'] || '';
 
           // Validate required fields
-          if (!fullName || !email) {
-            summary.errors.push(`${email || 'unknown'}: Missing required fields`);
+          if (!teacherName || !phoneNumber) {
+            summary.errors.push(`Teacher "${teacherName || 'unknown'}": Missing teacher_name or phone_number`);
             summary.skipped++;
             continue;
           }
           
-          if (!validateEmail(email)) {
-            summary.errors.push(`${fullName}: Invalid email format`);
-            summary.skipped++;
-            continue;
-          }
-          
-          if (phone && !validatePhone(phone)) {
-            summary.errors.push(`${fullName}: Invalid phone number`);
+          // Clean and validate phone
+          const cleanedPhone = phoneNumber.replace(/\D/g, '');
+          if (!validatePhone(cleanedPhone)) {
+            summary.errors.push(`${teacherName}: Invalid phone number "${phoneNumber}"`);
             summary.skipped++;
             continue;
           }
 
-          // Collect and sanitize subjects and classes
-          const subjects: string[] = [];
-          const classes: string[] = [];
-          
-          for (let i = 1; i <= 5; i++) {
-            const subject = sanitizeInput(row[`Subject ${i}`] || row[`subject_${i}`], 50);
-            const classVal = sanitizeInput(row[`Class ${i}`] || row[`class_${i}`], 20);
-            if (subject) subjects.push(subject);
-            if (classVal) classes.push(classVal);
-          }
+          // Validate password if provided
+          const teacherPassword = password && password.trim().length >= 6 
+            ? password.trim() 
+            : `teacher${cleanedPhone.substring(cleanedPhone.length - 4)}`;
 
-          // Check for duplicates
+          // Parse comma-separated classes and subjects
+          const classesArray = assignedClass
+            .split(',')
+            .map((c: string) => c.trim())
+            .filter((c: string) => c.length > 0);
+          
+          const subjectsArray = assignedSubject
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+
+          // Check for existing teacher by phone
           const { data: existing } = await supabase
             .from('teachers')
             .select('id')
-            .eq('email', email)
-            .single();
+            .eq('phone', cleanedPhone)
+            .maybeSingle();
 
           if (existing) {
             summary.skipped++;
             continue;
           }
 
-          // Generate secure password (ignore any provided password)
-          const securePassword = generateSecurePassword();
+          // Generate email from phone
+          const teacherEmail = `teacher${cleanedPhone}@school.edu.np`;
 
+          // Create auth user
           const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-            email: email,
-            password: securePassword,
+            email: teacherEmail,
+            password: teacherPassword,
             email_confirm: true,
             user_metadata: {
-              full_name: fullName,
+              full_name: teacherName,
               role: 'teacher',
-              phone: phone
+              phone: cleanedPhone
             }
           });
 
           if (authError) {
-            summary.errors.push(mapErrorMessage(authError, fullName));
+            if (authError.message?.includes('already') || authError.message?.includes('duplicate')) {
+              summary.errors.push(`${teacherName}: Account already exists`);
+            } else {
+              summary.errors.push(mapErrorMessage(authError, teacherName));
+            }
             summary.skipped++;
             continue;
           }
@@ -342,41 +333,52 @@ serve(async (req) => {
             .from('teachers')
             .insert({
               user_id: authUser.user.id,
-              name: fullName,
-              email: email,
-              phone: phone,
-              subjects: subjects,
-              classes_assigned: classes
+              name: teacherName,
+              email: teacherEmail,
+              phone: cleanedPhone,
+              subjects: subjectsArray,
+              classes_assigned: classesArray
             });
 
           if (insertError) {
-            summary.errors.push(mapErrorMessage(insertError, fullName));
+            summary.errors.push(mapErrorMessage(insertError, teacherName));
+            // Try to clean up auth user if teacher insert failed
+            try {
+              await supabase.auth.admin.deleteUser(authUser.user.id);
+            } catch (e) {
+              console.error('Failed to cleanup auth user:', e);
+            }
             summary.skipped++;
           } else {
             summary.added++;
             summary.credentials.push({
-              name: fullName,
-              email: email,
-              password: securePassword
+              name: teacherName,
+              email: teacherEmail,
+              password: teacherPassword
             });
           }
         } catch (error: any) {
           console.error('Row processing error:', error);
-          summary.errors.push('Unable to process a record');
+          summary.errors.push('Unable to process a teacher record');
           summary.skipped++;
         }
       }
+    } else {
+      return new Response(
+        JSON.stringify({ error: 'Invalid type. Must be "students" or "teachers"' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Step 3: Create auto-notice
+    // Create auto-notice if records were added
     if (summary.added > 0) {
       const noticeTitle = type === 'students' 
         ? `📢 Student Data Updated`
         : `📢 New Teachers Added`;
       
       const noticeDescription = type === 'students'
-        ? `${summary.added} student records have been added. ${summary.skipped > 0 ? `${summary.skipped} records were skipped.` : ''}`
-        : `${summary.added} teacher records have been added. ${summary.skipped > 0 ? `${summary.skipped} records were skipped.` : ''}`;
+        ? `${summary.added} student records have been added via bulk upload. ${summary.skipped > 0 ? `${summary.skipped} records were skipped (duplicates or errors).` : ''}`
+        : `${summary.added} teacher records have been added via bulk upload. ${summary.skipped > 0 ? `${summary.skipped} records were skipped (duplicates or errors).` : ''}`;
 
       await supabase.from('notices').insert({
         title: noticeTitle,
@@ -387,10 +389,7 @@ serve(async (req) => {
       });
     }
 
-    // Sanitize AI suggestions before returning to prevent XSS
-    const sanitizedSuggestions = (validation.suggestions || []).map((s: any) => 
-      typeof s === 'string' ? sanitizeInput(s, 500) : sanitizeInput(String(s), 500)
-    );
+    console.log(`Batch complete: ${summary.added} added, ${summary.skipped} skipped, ${summary.errors.length} errors`);
 
     return new Response(
       JSON.stringify({ 
@@ -399,10 +398,9 @@ serve(async (req) => {
           total: summary.total,
           added: summary.added,
           skipped: summary.skipped,
-          errors: summary.errors,
+          errors: summary.errors.slice(0, 50), // Limit errors returned
           credentials: summary.credentials
-        },
-        aiSuggestions: sanitizedSuggestions 
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -410,7 +408,7 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Function error:', error);
     return new Response(
-      JSON.stringify({ error: 'An error occurred while processing the upload' }),
+      JSON.stringify({ error: `Upload processing failed: ${error.message || 'Unknown error'}` }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

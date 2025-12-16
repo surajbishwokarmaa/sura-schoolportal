@@ -5,7 +5,7 @@ import { Plus, Edit2, Trash2, ArrowLeft, GraduationCap, Search, ChevronLeft, Che
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { PasswordInput } from '@/components/ui/password-input';
+// PasswordInput removed - using auto-generated passwords
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -192,27 +192,28 @@ const StudentsManagement = () => {
         resetForm();
       }
     } else {
-      // Validate password
-      if (!formData.password || formData.password.trim() === '') {
+      // Auto-generate password from parent phone: sura + first 2 + last 2
+      const cleanedPhone = formData.parentPhone.trim().replace(/\D/g, '');
+      if (cleanedPhone.length < 4) {
         toast({
           title: 'Error',
-          description: 'Password is required',
+          description: 'Parent phone must have at least 4 digits',
           variant: 'destructive'
         });
         setIsLoading(false);
         return;
       }
-
-      const password = formData.password.trim();
-      // Make email unique by combining class and roll number (e.g., grade10_01@school.edu.np)
-      const classSlug = formData.class.toLowerCase().replace(/\s+/g, '');
-      const studentEmail = `${classSlug}_${formData.rollNo.trim()}@school.edu.np`;
+      
+      const password = `sura${cleanedPhone.substring(0, 2)}${cleanedPhone.substring(cleanedPhone.length - 2)}`;
+      
+      // Make email unique by combining roll number
+      const studentEmail = `student${formData.rollNo.trim().replace(/\s/g, '')}@school.edu.np`;
 
       console.log('Creating student account:', { 
         email: studentEmail, 
         rollNo: formData.rollNo.trim(),
-        parentPhone: formData.parentPhone.trim(),
-        passwordLength: password.length 
+        parentPhone: cleanedPhone,
+        password: password
       });
 
       // Create auth user via edge function - use parent phone for login
@@ -222,7 +223,7 @@ const StudentsManagement = () => {
           password: password,
           role: 'student',
           fullName: formData.name.trim(),
-          phone: formData.parentPhone.trim()
+          phone: cleanedPhone
         }
       });
 
@@ -276,7 +277,7 @@ const StudentsManagement = () => {
           gender: formData.gender as 'male' | 'female' | 'other' | undefined,
           dob: formData.dob,
           parent_name: formData.parentName?.trim() || null,
-          parent_phone: formData.parentPhone.trim(),
+          parent_phone: cleanedPhone,
           address: formData.address?.trim() || null,
           is_active: true
         }]);
@@ -290,7 +291,7 @@ const StudentsManagement = () => {
       } else {
         toast({
           title: 'Success',
-          description: `Student created successfully! Login with parent phone: ${formData.parentPhone}, Password: ${password}`,
+          description: `Student created! Login: Phone ${cleanedPhone}, Password: ${password}`,
           duration: 10000
         });
         fetchStudents();
@@ -485,17 +486,16 @@ const StudentsManagement = () => {
                   </div>
                   {!editingStudent && (
                     <div>
-                      <Label htmlFor="password">Password</Label>
-                      <PasswordInput
+                      <Label htmlFor="password">Password (Auto-generated)</Label>
+                      <Input
                         id="password"
                         value={formData.password}
-                        onChange={(e) => setFormData({...formData, password: e.target.value})}
-                        required
-                        minLength={8}
-                        placeholder="Enter password (min 8 characters)"
+                        readOnly
+                        className="bg-muted"
+                        placeholder="Auto-generated from parent mobile"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Student will login using parent's phone + this password
+                        🔐 Password: <code className="bg-muted px-1 rounded">sura</code> + first 2 + last 2 digits of parent mobile
                       </p>
                     </div>
                   )}
@@ -512,9 +512,20 @@ const StudentsManagement = () => {
                     <Input
                       id="parentPhone"
                       value={formData.parentPhone}
-                      onChange={(e) => setFormData({...formData, parentPhone: e.target.value})}
+                      onChange={(e) => {
+                        const phone = e.target.value;
+                        const cleaned = phone.replace(/\D/g, '');
+                        // Auto-generate password: sura + first 2 + last 2 digits
+                        const autoPassword = cleaned.length >= 4 
+                          ? `sura${cleaned.substring(0, 2)}${cleaned.substring(cleaned.length - 2)}`
+                          : '';
+                        setFormData({...formData, parentPhone: phone, password: autoPassword});
+                      }}
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This will be used for student login
+                    </p>
                   </div>
                 </div>
                 <div>
