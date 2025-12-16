@@ -139,6 +139,34 @@ serve(async (req) => {
 
     console.log('User created successfully:', authUser.user.id);
 
+    // Ensure profile + user_roles exist (required by FK constraints in app tables)
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert(
+        {
+          id: authUser.user.id,
+          full_name: fullName,
+          phone: phone || null,
+          role: role,
+          photo_url: null,
+        },
+        { onConflict: 'id' }
+      );
+
+    if (profileError) {
+      console.error('Failed to upsert profile:', profileError);
+      // cleanup auth user to avoid orphan
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create user profile' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    await supabaseAdmin
+      .from('user_roles')
+      .upsert({ user_id: authUser.user.id, role }, { onConflict: 'user_id,role' });
+
     return new Response(
       JSON.stringify({ user: authUser.user }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
