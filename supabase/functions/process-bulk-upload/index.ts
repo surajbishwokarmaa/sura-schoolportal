@@ -6,28 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate a strong random password with 12 characters
-function generateStrongPassword(): string {
-  const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const lowercase = 'abcdefghjkmnpqrstuvwxyz';
-  const numbers = '23456789';
-  const special = '@#$%&*!';
-  const allChars = uppercase + lowercase + numbers + special;
-  
-  // Ensure at least one of each required type
-  let password = '';
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += special[Math.floor(Math.random() * special.length)];
-  
-  // Fill remaining 8 characters randomly
-  for (let i = 0; i < 8; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)];
-  }
-  
-  // Shuffle the password
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+// Generate password: "sura" + first 2 digits + last 2 digits of phone
+function generateAutoPassword(phone: string): string {
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length < 4) return 'sura0000';
+  const first2 = cleaned.substring(0, 2);
+  const last2 = cleaned.substring(cleaned.length - 2);
+  return `sura${first2}${last2}`;
 }
 
 // Sanitize text input to prevent XSS and injection
@@ -191,8 +176,8 @@ serve(async (req) => {
             continue;
           }
 
-          // Generate strong random password
-          const studentPassword = generateStrongPassword();
+          // Generate auto password: sura + first2 + last2 of phone
+          const studentPassword = generateAutoPassword(cleanedPhone);
           
           // Make email unique by including class and roll (siblings can have same parent phone)
           const classSlug = classValue.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -325,10 +310,10 @@ serve(async (req) => {
             continue;
           }
 
-          // Use provided password or generate strong random one
-          const teacherPassword = password && password.trim().length >= 8 
+          // Use provided password or generate auto password
+          const teacherPassword = password && password.trim().length >= 6 
             ? password.trim() 
-            : generateStrongPassword();
+            : generateAutoPassword(cleanedPhone);
 
           // Parse comma-separated classes and subjects
           const classesArray = assignedClass
