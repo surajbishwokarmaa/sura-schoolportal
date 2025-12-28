@@ -25,6 +25,38 @@ function mapErrorMessage(error: any): string {
   return 'Unable to create account';
 }
 
+// Sanitize text input to prevent XSS and injection
+function sanitizeInput(input: string | undefined | null, maxLength = 255): string {
+  if (input === undefined || input === null) return '';
+  return String(input)
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>'";&]/g, '')
+    .trim()
+    .slice(0, maxLength);
+}
+
+// Validate phone number format
+function validatePhone(phone: string): boolean {
+  if (!phone) return true; // Phone is optional
+  const cleaned = phone.replace(/\D/g, '');
+  return cleaned.length >= 10 && cleaned.length <= 15;
+}
+
+// Validate password strength
+function validatePassword(password: string): { valid: boolean; message: string } {
+  if (password.length < 8) {
+    return { valid: false, message: 'Password must be at least 8 characters' };
+  }
+  if (password.length > 72) {
+    return { valid: false, message: 'Password must be less than 72 characters' };
+  }
+  // Check for at least one letter and one number
+  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one letter and one number' };
+  }
+  return { valid: true, message: '' };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -80,14 +112,34 @@ serve(async (req) => {
       );
     }
 
-    const { email, password, role, fullName, phone } = await req.json();
+    const rawBody = await req.json();
+    
+    // Sanitize all inputs
+    const email = sanitizeInput(rawBody.email, 255).toLowerCase();
+    const password = rawBody.password || '';
+    const role = sanitizeInput(rawBody.role, 20);
+    const fullName = sanitizeInput(rawBody.fullName, 100);
+    const phone = rawBody.phone ? sanitizeInput(rawBody.phone, 20).replace(/\D/g, '') : null;
 
     console.log('Admin creating user account:', { email, role, fullName, requestedBy: callerUser.id });
 
     // Validate required fields
     if (!email || !password || !role || !fullName) {
+      const missing = [];
+      if (!email) missing.push('email');
+      if (!password) missing.push('password');
+      if (!role) missing.push('role');
+      if (!fullName) missing.push('fullName');
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: `Missing required fields: ${missing.join(', ')}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Validate full name length
+    if (fullName.length < 2) {
+      return new Response(
+        JSON.stringify({ error: 'Full name must be at least 2 characters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -102,9 +154,18 @@ serve(async (req) => {
     }
     
     // Validate password strength
-    if (password.length < 8) {
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
       return new Response(
-        JSON.stringify({ error: 'Password must be at least 8 characters' }),
+        JSON.stringify({ error: passwordValidation.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Validate phone if provided
+    if (phone && !validatePhone(phone)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid phone number format (must be 10-15 digits)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
