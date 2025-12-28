@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, KeyRound, Lock } from 'lucide-react';
+import { GraduationCap, Users, BookOpen, FileText, Bell, Upload, Settings, TrendingUp, KeyRound, Lock, Library } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -70,6 +70,13 @@ const AdminDashboard = () => {
       icon: BookOpen,
       path: '/admin/classes',
       color: 'from-purple-500 to-purple-600'
+    },
+    {
+      title: 'Manage Subjects',
+      description: 'Add subjects for each class',
+      icon: Library,
+      path: '/admin/subjects',
+      color: 'from-teal-500 to-teal-600'
     },
     {
       title: 'Bulk Upload',
