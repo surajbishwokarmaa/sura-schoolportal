@@ -95,7 +95,19 @@ const BulkUploadManagement = () => {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, type === 'students' ? 'Students' : 'Teachers');
-    XLSX.writeFile(wb, filename);
+    
+    // Use blob-based download for better browser compatibility
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
     toast({
       title: "Template Downloaded",
