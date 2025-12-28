@@ -400,6 +400,7 @@ export type Database = {
           is_equal_split: boolean | null
           name: string
           practical_full_marks: number
+          subject_type: string
           theory_full_marks: number
           total_marks: number
           updated_at: string | null
@@ -411,6 +412,7 @@ export type Database = {
           is_equal_split?: boolean | null
           name: string
           practical_full_marks?: number
+          subject_type?: string
           theory_full_marks?: number
           total_marks?: number
           updated_at?: string | null
@@ -422,6 +424,7 @@ export type Database = {
           is_equal_split?: boolean | null
           name?: string
           practical_full_marks?: number
+          subject_type?: string
           theory_full_marks?: number
           total_marks?: number
           updated_at?: string | null

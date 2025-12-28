@@ -20,6 +20,7 @@ interface Subject {
   theory_full_marks: number;
   practical_full_marks: number;
   total_marks: number;
+  subject_type: 'compulsory' | 'optional';
 }
 
 interface ClassData {
@@ -43,7 +44,8 @@ const SubjectsManagement = () => {
     name: '',
     classId: '',
     theoryFullMarks: '75',
-    practicalFullMarks: '25'
+    practicalFullMarks: '25',
+    subjectType: 'compulsory' as 'compulsory' | 'optional'
   });
 
   useEffect(() => {
@@ -69,7 +71,12 @@ const SubjectsManagement = () => {
     if (error) {
       toast({ title: 'Error', description: 'Failed to fetch subjects', variant: 'destructive' });
     } else {
-      setSubjects(data || []);
+      // Cast subject_type to the expected type
+      const typedData = (data || []).map(s => ({
+        ...s,
+        subject_type: (s.subject_type as 'compulsory' | 'optional') || 'compulsory'
+      }));
+      setSubjects(typedData);
     }
   };
 
@@ -103,7 +110,8 @@ const SubjectsManagement = () => {
       class_id: formData.classId,
       theory_full_marks: theoryMarks,
       practical_full_marks: practicalMarks,
-      total_marks: totalMarks
+      total_marks: totalMarks,
+      subject_type: formData.subjectType
     };
 
     if (editingSubject) {
@@ -140,7 +148,8 @@ const SubjectsManagement = () => {
       name: subject.name,
       classId: subject.class_id || '',
       theoryFullMarks: subject.theory_full_marks.toString(),
-      practicalFullMarks: subject.practical_full_marks.toString()
+      practicalFullMarks: subject.practical_full_marks.toString(),
+      subjectType: subject.subject_type || 'compulsory'
     });
     setIsDialogOpen(true);
   };
@@ -159,7 +168,7 @@ const SubjectsManagement = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', classId: '', theoryFullMarks: '75', practicalFullMarks: '25' });
+    setFormData({ name: '', classId: '', theoryFullMarks: '75', practicalFullMarks: '25', subjectType: 'compulsory' });
     setEditingSubject(null);
     setIsDialogOpen(false);
   };
@@ -232,6 +241,18 @@ const SubjectsManagement = () => {
                     placeholder="e.g., Mathematics, English"
                     required
                   />
+                </div>
+                <div>
+                  <Label htmlFor="subjectType">Subject Type *</Label>
+                  <Select value={formData.subjectType} onValueChange={(v: 'compulsory' | 'optional') => setFormData({ ...formData, subjectType: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="compulsory">Compulsory</SelectItem>
+                      <SelectItem value="optional">Optional</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -313,8 +334,13 @@ const SubjectsManagement = () => {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <h4 className="font-medium">{subject.name}</h4>
-                          <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium">{subject.name}</h4>
+                            <Badge variant={subject.subject_type === 'compulsory' ? 'default' : 'secondary'} className="text-xs">
+                              {subject.subject_type === 'compulsory' ? 'Compulsory' : 'Optional'}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground space-y-0.5">
                             <p>Theory: {subject.theory_full_marks} | Practical: {subject.practical_full_marks}</p>
                             <p className="font-medium">Total: {subject.total_marks}</p>
                           </div>
