@@ -192,19 +192,40 @@ const StudentsManagement = () => {
         resetForm();
       }
     } else {
-      // Auto-generate password from parent phone: sura + first 2 + last 2
+      // Generate strong random password
       const cleanedPhone = formData.parentPhone.trim().replace(/\D/g, '');
-      if (cleanedPhone.length < 4) {
+      if (cleanedPhone.length < 10) {
         toast({
           title: 'Error',
-          description: 'Parent phone must have at least 4 digits',
+          description: 'Parent phone must have at least 10 digits',
           variant: 'destructive'
         });
         setIsLoading(false);
         return;
       }
       
-      const password = `sura${cleanedPhone.substring(0, 2)}${cleanedPhone.substring(cleanedPhone.length - 2)}`;
+      // Generate strong password with 12 characters
+      const generateStrongPassword = () => {
+        const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const lowercase = 'abcdefghjkmnpqrstuvwxyz';
+        const numbers = '23456789';
+        const special = '@#$%&*!';
+        const allChars = uppercase + lowercase + numbers + special;
+        
+        let password = '';
+        password += uppercase[Math.floor(Math.random() * uppercase.length)];
+        password += lowercase[Math.floor(Math.random() * lowercase.length)];
+        password += numbers[Math.floor(Math.random() * numbers.length)];
+        password += special[Math.floor(Math.random() * special.length)];
+        
+        for (let i = 0; i < 8; i++) {
+          password += allChars[Math.floor(Math.random() * allChars.length)];
+        }
+        
+        return password.split('').sort(() => Math.random() - 0.5).join('');
+      };
+      
+      const password = generateStrongPassword();
       
       // Make email unique by including class and roll (supports siblings)
       const classSlug = formData.class.toLowerCase().replace(/[^a-z0-9]/g, '');
