@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Edit2, Trash2, ArrowLeft, GraduationCap, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, GraduationCap, Search, ChevronLeft, ChevronRight, Camera, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,7 @@ interface Student {
   phone: string | null;
   parent_phone: string;
   address: string | null;
+  photo_url: string | null;
 }
 
 interface Class {
@@ -68,7 +69,9 @@ const StudentsManagement = () => {
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Pagination and search state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState('');
@@ -157,24 +160,69 @@ const StudentsManagement = () => {
     return cls?.sections || [];
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'Error', description: 'Photo must be under 2MB', variant: 'destructive' });
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Error', description: 'Please select an image file', variant: 'destructive' });
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const uploadPhoto = async (studentId: string): Promise<string | null> => {
+    if (!photoFile) return null;
+    const ext = photoFile.name.split('.').pop();
+    const filePath = `${studentId}.${ext}`;
+    
+    // Delete old photo if exists
+    await supabase.storage.from('student-photos').remove([filePath]);
+    
+    const { error } = await supabase.storage
+      .from('student-photos')
+      .upload(filePath, photoFile, { upsert: true });
+    
+    if (error) {
+      console.error('Photo upload error:', error);
+      return null;
+    }
+    
+    const { data: urlData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
+    return urlData.publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     if (editingStudent) {
+      // Upload photo if selected
+      const photoUrl = await uploadPhoto(editingStudent.id);
+      
+      const updateData: any = {
+        name: formData.name,
+        class: formData.class,
+        section: formData.section,
+        roll_no: formData.rollNo,
+        gender: formData.gender as 'male' | 'female' | 'other' | null,
+        dob: formData.dob,
+        parent_name: formData.parentName,
+        parent_phone: formData.parentPhone,
+        address: formData.address
+      };
+      
+      if (photoUrl) {
+        updateData.photo_url = photoUrl;
+      }
+      
       const { error } = await supabase
         .from('students')
-        .update({
-          name: formData.name,
-          class: formData.class,
-          section: formData.section,
-          roll_no: formData.rollNo,
-          gender: formData.gender as 'male' | 'female' | 'other' | null,
-          dob: formData.dob,
-          parent_name: formData.parentName,
-          parent_phone: formData.parentPhone,
-          address: formData.address
-        })
+        .update(updateData)
         .eq('id', editingStudent.id);
 
       if (error) {
@@ -267,7 +315,7 @@ const StudentsManagement = () => {
       const authUser = authData.user;
 
       // Insert student record
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('students')
         .insert([{
           user_id: authUser.id,
@@ -281,7 +329,9 @@ const StudentsManagement = () => {
           parent_phone: cleanedPhone,
           address: formData.address?.trim() || null,
           is_active: true
-        }]);
+        }])
+        .select('id')
+        .single();
 
       if (error) {
         toast({
@@ -290,6 +340,13 @@ const StudentsManagement = () => {
           variant: 'destructive'
         });
       } else {
+        // Upload photo if selected
+        if (insertedData && photoFile) {
+          const photoUrl = await uploadPhoto(insertedData.id);
+          if (photoUrl) {
+            await supabase.from('students').update({ photo_url: photoUrl }).eq('id', insertedData.id);
+          }
+        }
         toast({
           title: 'Success',
           description: `Student created! Login: Phone ${cleanedPhone}, Password: ${password}`,
@@ -317,6 +374,8 @@ const StudentsManagement = () => {
       address: student.address || '',
       password: ''
     });
+    setPhotoFile(null);
+    setPhotoPreview(student.photo_url || null);
     setIsDialogOpen(true);
   };
 
@@ -360,6 +419,8 @@ const StudentsManagement = () => {
     });
     setEditingStudent(null);
     setIsDialogOpen(false);
+    setPhotoFile(null);
+    setPhotoPreview(null);
   };
 
   if (loading) {
@@ -529,6 +590,41 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </div>
+                {/* Photo Upload */}
+                <div>
+                  <Label>Student Photo</Label>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="relative w-20 h-20 rounded-full overflow-hidden bg-muted flex items-center justify-center border-2 border-dashed border-border">
+                      {photoPreview ? (
+                        <>
+                          <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
+                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <Camera className="w-8 h-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                        {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">Max 2MB, JPG/PNG</p>
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <Label htmlFor="address">Address</Label>
                   <Input
@@ -582,8 +678,12 @@ const StudentsManagement = () => {
             <Card key={student.id} className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {student.photo_url ? (
+                      <img src={student.photo_url} alt={student.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-bold truncate">{student.name}</h3>
