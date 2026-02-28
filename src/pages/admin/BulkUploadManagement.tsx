@@ -35,6 +35,8 @@ const BulkUploadManagement = () => {
   const [photoUploadStatus, setPhotoUploadStatus] = useState("");
   const studentPhotoRef = useRef<HTMLInputElement>(null);
   const teacherPhotoRef = useRef<HTMLInputElement>(null);
+  const [studentPhotos, setStudentPhotos] = useState<FileList | null>(null);
+  const [teacherPhotos, setTeacherPhotos] = useState<FileList | null>(null);
 
   const downloadTemplate = useCallback((type: 'students' | 'teachers') => {
     let headers: string[] = [];
@@ -277,6 +279,18 @@ const BulkUploadManagement = () => {
           // Process in batches
           const summary = await processBatches(normalizedData, type);
 
+          setUploadProgress(90);
+          
+          // Auto-upload attached photos after data processing
+          const photos = type === 'students' ? studentPhotos : teacherPhotos;
+          if (photos && photos.length > 0 && summary.added > 0) {
+            setProcessingStatus(`Uploading ${photos.length} photos...`);
+            await handleBulkPhotoUpload(photos, type);
+            // Clear attached photos
+            if (type === 'students') setStudentPhotos(null);
+            else setTeacherPhotos(null);
+          }
+
           setUploadProgress(100);
           setProcessingStatus("Complete!");
           setUploadSummary(summary);
@@ -284,7 +298,7 @@ const BulkUploadManagement = () => {
           if (summary.added > 0) {
             toast({
               title: "Upload Successful!",
-              description: `Added ${summary.added} ${type} out of ${summary.total} records.`,
+              description: `Added ${summary.added} ${type} out of ${summary.total} records.${photos && photos.length > 0 ? ` Photos also uploaded.` : ''}`,
             });
           } else {
             toast({
@@ -574,7 +588,7 @@ const BulkUploadManagement = () => {
                 Upload Students
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Bulk upload student records. Duplicates are auto-skipped.
+                Bulk upload student records with photos. Duplicates are auto-skipped.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 sm:space-y-4">
@@ -600,11 +614,50 @@ const BulkUploadManagement = () => {
                   <Button disabled={isUploading} size="sm" className="w-full text-xs sm:text-sm" asChild>
                     <span>
                       <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      Upload File
+                      Upload Excel
                     </span>
                   </Button>
                 </label>
               </div>
+
+              {/* Photo attachment */}
+              <div className="border border-dashed border-border rounded-md p-2 sm:p-3 space-y-2">
+                <input
+                  ref={studentPhotoRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setStudentPhotos(e.target.files);
+                      toast({ title: `${e.target.files.length} photos attached`, description: "They will be uploaded with the Excel data." });
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isUploadingPhotos || isUploading}
+                  onClick={() => studentPhotoRef.current?.click()}
+                  className="w-full text-xs sm:text-sm"
+                >
+                  <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {studentPhotos ? `📸 ${studentPhotos.length} photos attached` : 'Attach Photos (optional)'}
+                </Button>
+                {studentPhotos && (
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{studentPhotos.length} photos ready to upload</span>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { setStudentPhotos(null); if (studentPhotoRef.current) studentPhotoRef.current.value = ''; }}>
+                      Clear
+                    </Button>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  📸 Format: <code className="bg-background px-1 rounded">Class5_1.jpg</code> (class_rollno) • Max 2MB each
+                </p>
+              </div>
+
               <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-2">
                 <p className="font-medium">📋 Required columns:</p>
                 <div className="flex flex-wrap gap-1">
@@ -637,7 +690,7 @@ const BulkUploadManagement = () => {
                 Upload Teachers
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Bulk upload teacher records with custom passwords.
+                Bulk upload teacher records with photos and custom passwords.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 sm:space-y-4">
@@ -663,11 +716,50 @@ const BulkUploadManagement = () => {
                   <Button disabled={isUploading} size="sm" className="w-full text-xs sm:text-sm" asChild>
                     <span>
                       <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      Upload File
+                      Upload Excel
                     </span>
                   </Button>
                 </label>
               </div>
+
+              {/* Photo attachment */}
+              <div className="border border-dashed border-border rounded-md p-2 sm:p-3 space-y-2">
+                <input
+                  ref={teacherPhotoRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setTeacherPhotos(e.target.files);
+                      toast({ title: `${e.target.files.length} photos attached`, description: "They will be uploaded with the Excel data." });
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isUploadingPhotos || isUploading}
+                  onClick={() => teacherPhotoRef.current?.click()}
+                  className="w-full text-xs sm:text-sm"
+                >
+                  <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {teacherPhotos ? `📸 ${teacherPhotos.length} photos attached` : 'Attach Photos (optional)'}
+                </Button>
+                {teacherPhotos && (
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{teacherPhotos.length} photos ready to upload</span>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { setTeacherPhotos(null); if (teacherPhotoRef.current) teacherPhotoRef.current.value = ''; }}>
+                      Clear
+                    </Button>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  📸 Format: <code className="bg-background px-1 rounded">Ramesh_Thapa.jpg</code> (name with underscores) • Max 2MB each
+                </p>
+              </div>
+
               <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-2">
                 <p className="font-medium">📋 Required columns:</p>
                 <div className="flex flex-wrap gap-1">
@@ -679,7 +771,7 @@ const BulkUploadManagement = () => {
                 </div>
                 <div className="pt-2 border-t border-border/50 space-y-1">
                   <p className="text-[10px] sm:text-xs">
-                    <strong>🔐 Password:</strong> Set in Excel column. If empty, auto-generated as <code className="bg-background px-1 rounded">teacher</code> + last 4 digits of phone
+                    <strong>🔐 Password:</strong> Set in Excel column. If empty, auto-generated as <code className="bg-background px-1 rounded">sura</code> + first 2 + last 2 digits of phone
                   </p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground/80">
                     💡 Multiple classes/subjects: separate with commas (e.g., "Grade 5, Grade 6")
@@ -708,83 +800,6 @@ const BulkUploadManagement = () => {
             </CardContent>
           </Card>
         )}
-
-        {/* Bulk Photo Upload */}
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-          <Card className="h-fit">
-            <CardHeader className="pb-2 sm:pb-4">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <ImagePlus className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Student Photos
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Upload multiple student photos. Matched by filename.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <input
-                ref={studentPhotoRef}
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => e.target.files && handleBulkPhotoUpload(e.target.files, 'students')}
-              />
-              <Button
-                size="sm"
-                disabled={isUploadingPhotos || isUploading}
-                onClick={() => studentPhotoRef.current?.click()}
-                className="w-full text-xs sm:text-sm"
-              >
-                <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Select Student Photos
-              </Button>
-              <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-1">
-                <p className="font-medium">📸 Filename format:</p>
-                <p><code className="bg-background px-1 rounded">Class5_1.jpg</code> → Class 5, Roll No 1</p>
-                <p><code className="bg-background px-1 rounded">Class10_15.png</code> → Class 10, Roll No 15</p>
-                <p className="pt-1 text-muted-foreground/80">Max 2MB per photo • JPG, PNG supported</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="h-fit">
-            <CardHeader className="pb-2 sm:pb-4">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <ImagePlus className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Teacher Photos
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Upload multiple teacher photos. Matched by full name.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <input
-                ref={teacherPhotoRef}
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => e.target.files && handleBulkPhotoUpload(e.target.files, 'teachers')}
-              />
-              <Button
-                size="sm"
-                disabled={isUploadingPhotos || isUploading}
-                onClick={() => teacherPhotoRef.current?.click()}
-                className="w-full text-xs sm:text-sm"
-              >
-                <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Select Teacher Photos
-              </Button>
-              <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-1">
-                <p className="font-medium">📸 Filename format:</p>
-                <p><code className="bg-background px-1 rounded">Ramesh_Thapa.jpg</code> → Teacher "Ramesh Thapa"</p>
-                <p><code className="bg-background px-1 rounded">Gita_Sharma.png</code> → Teacher "Gita Sharma"</p>
-                <p className="pt-1 text-muted-foreground/80">Use underscores for spaces • Max 2MB per photo</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );
