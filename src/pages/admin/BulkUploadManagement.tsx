@@ -1,11 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Upload, Download, Users, GraduationCap, AlertCircle, FileSpreadsheet, CheckCircle2, Copy } from "lucide-react";
+import { ArrowLeft, Upload, Download, Users, GraduationCap, AlertCircle, FileSpreadsheet, CheckCircle2, Copy, Camera, ImagePlus } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 interface UploadSummary {
@@ -30,6 +30,11 @@ const BulkUploadManagement = () => {
   const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
   const [processingStatus, setProcessingStatus] = useState("");
   const [showCredentials, setShowCredentials] = useState(false);
+  const [photoUploadProgress, setPhotoUploadProgress] = useState(0);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("");
+  const studentPhotoRef = useRef<HTMLInputElement>(null);
+  const teacherPhotoRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = useCallback((type: 'students' | 'teachers') => {
     let headers: string[] = [];
@@ -352,6 +357,97 @@ const BulkUploadManagement = () => {
     });
   }, [uploadSummary]);
 
+  const handleBulkPhotoUpload = useCallback(async (files: FileList, type: 'students' | 'teachers') => {
+    if (files.length === 0) return;
+
+    setIsUploadingPhotos(true);
+    setPhotoUploadProgress(0);
+    const bucket = type === 'students' ? 'student-photos' : 'teacher-photos';
+    let matched = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    if (type === 'students') {
+      const { data: students } = await supabase.from('students').select('id, name, class, roll_no');
+      if (!students || students.length === 0) {
+        toast({ title: 'Error', description: 'No students found. Upload student data first.', variant: 'destructive' });
+        setIsUploadingPhotos(false);
+        return;
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setPhotoUploadStatus(`Uploading ${i + 1}/${files.length}: ${file.name}`);
+        setPhotoUploadProgress(Math.floor((i / files.length) * 100));
+
+        if (!file.type.startsWith('image/')) { errors.push(`${file.name}: Not an image`); failed++; continue; }
+        if (file.size > 2 * 1024 * 1024) { errors.push(`${file.name}: Over 2MB`); failed++; continue; }
+
+        // Filename format: Class5_1.jpg (class_rollno)
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+        const parts = nameWithoutExt.split('_');
+        let student = null;
+        if (parts.length >= 2) {
+          const classPattern = parts.slice(0, -1).join(' ').toLowerCase().replace(/\s+/g, '');
+          const rollNo = parts[parts.length - 1].trim();
+          student = students.find(s => s.class.toLowerCase().replace(/\s+/g, '') === classPattern && s.roll_no === rollNo);
+        }
+        if (!student) { errors.push(`${file.name}: No match. Use Class5_1.jpg format`); failed++; continue; }
+
+        const ext = file.name.split('.').pop();
+        const filePath = `${student.id}.${ext}`;
+        const { error: upErr } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: true });
+        if (upErr) { errors.push(`${file.name}: ${upErr.message}`); failed++; continue; }
+
+        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        await supabase.from('students').update({ photo_url: urlData.publicUrl }).eq('id', student.id);
+        matched++;
+      }
+    } else {
+      const { data: teachers } = await supabase.from('teachers').select('id, name');
+      if (!teachers || teachers.length === 0) {
+        toast({ title: 'Error', description: 'No teachers found. Upload teacher data first.', variant: 'destructive' });
+        setIsUploadingPhotos(false);
+        return;
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setPhotoUploadStatus(`Uploading ${i + 1}/${files.length}: ${file.name}`);
+        setPhotoUploadProgress(Math.floor((i / files.length) * 100));
+
+        if (!file.type.startsWith('image/')) { errors.push(`${file.name}: Not an image`); failed++; continue; }
+        if (file.size > 2 * 1024 * 1024) { errors.push(`${file.name}: Over 2MB`); failed++; continue; }
+
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ').trim().toLowerCase();
+        const teacher = teachers.find(t => t.name.toLowerCase().trim() === nameWithoutExt);
+        if (!teacher) { errors.push(`${file.name}: No matching teacher`); failed++; continue; }
+
+        const ext = file.name.split('.').pop();
+        const filePath = `${teacher.id}.${ext}`;
+        const { error: upErr } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: true });
+        if (upErr) { errors.push(`${file.name}: ${upErr.message}`); failed++; continue; }
+
+        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        await supabase.from('teachers').update({ photo_url: urlData.publicUrl }).eq('id', teacher.id);
+        matched++;
+      }
+    }
+
+    setPhotoUploadProgress(100);
+    setPhotoUploadStatus("");
+    setIsUploadingPhotos(false);
+    if (studentPhotoRef.current) studentPhotoRef.current.value = '';
+    if (teacherPhotoRef.current) teacherPhotoRef.current.value = '';
+
+    toast({
+      title: matched > 0 ? 'Photos Uploaded!' : 'No Photos Matched',
+      description: `${matched} matched, ${failed} failed out of ${files.length} files.${errors.length > 0 ? ' Errors: ' + errors.slice(0, 3).join('; ') : ''}`,
+      variant: matched > 0 ? undefined : 'destructive',
+      duration: 10000,
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
@@ -592,6 +688,99 @@ const BulkUploadManagement = () => {
                 <p className="text-[10px] sm:text-xs pt-1">
                   <strong>Limits:</strong> Max 2500+ records | 25MB
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Photo Upload Progress */}
+        {isUploadingPhotos && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                Uploading Photos...
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Progress value={photoUploadProgress} className="w-full h-2" />
+              <p className="text-xs text-muted-foreground">{photoUploadStatus}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Bulk Photo Upload */}
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+          <Card className="h-fit">
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <ImagePlus className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                Student Photos
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Upload multiple student photos. Matched by filename.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <input
+                ref={studentPhotoRef}
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files && handleBulkPhotoUpload(e.target.files, 'students')}
+              />
+              <Button
+                size="sm"
+                disabled={isUploadingPhotos || isUploading}
+                onClick={() => studentPhotoRef.current?.click()}
+                className="w-full text-xs sm:text-sm"
+              >
+                <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Select Student Photos
+              </Button>
+              <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-1">
+                <p className="font-medium">📸 Filename format:</p>
+                <p><code className="bg-background px-1 rounded">Class5_1.jpg</code> → Class 5, Roll No 1</p>
+                <p><code className="bg-background px-1 rounded">Class10_15.png</code> → Class 10, Roll No 15</p>
+                <p className="pt-1 text-muted-foreground/80">Max 2MB per photo • JPG, PNG supported</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="h-fit">
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <ImagePlus className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                Teacher Photos
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Upload multiple teacher photos. Matched by full name.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <input
+                ref={teacherPhotoRef}
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files && handleBulkPhotoUpload(e.target.files, 'teachers')}
+              />
+              <Button
+                size="sm"
+                disabled={isUploadingPhotos || isUploading}
+                onClick={() => teacherPhotoRef.current?.click()}
+                className="w-full text-xs sm:text-sm"
+              >
+                <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Select Teacher Photos
+              </Button>
+              <div className="text-xs text-muted-foreground bg-muted/50 p-2 sm:p-3 rounded-md space-y-1">
+                <p className="font-medium">📸 Filename format:</p>
+                <p><code className="bg-background px-1 rounded">Ramesh_Thapa.jpg</code> → Teacher "Ramesh Thapa"</p>
+                <p><code className="bg-background px-1 rounded">Gita_Sharma.png</code> → Teacher "Gita Sharma"</p>
+                <p className="pt-1 text-muted-foreground/80">Use underscores for spaces • Max 2MB per photo</p>
               </div>
             </CardContent>
           </Card>
