@@ -19,6 +19,7 @@ import NoticesManagement from "./pages/admin/NoticesManagement";
 import PasswordResetRequests from "./pages/admin/PasswordResetRequests";
 import SystemGuide from "./pages/admin/SystemGuide";
 import ChangePassword from "./pages/admin/ChangePassword";
+import YearEndManagement from "./pages/admin/YearEndManagement";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ViewMarksheet from "./pages/student/ViewMarksheet";
 import StudentViewNotices from "./pages/student/ViewNotices";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/admin/password-requests" element={<PasswordResetRequests />} />
               <Route path="/admin/change-password" element={<ChangePassword />} />
               <Route path="/admin/system-guide" element={<SystemGuide />} />
+              <Route path="/admin/year-end" element={<YearEndManagement />} />
               <Route path="/system-guide" element={<SystemGuide />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

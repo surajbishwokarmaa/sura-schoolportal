@@ -86,6 +86,13 @@ const AdminDashboard = () => {
       color: 'from-orange-500 to-orange-600'
     },
     {
+      title: 'New Academic Year',
+      description: 'Promote classes, leavers, roll numbers',
+      icon: TrendingUp,
+      path: '/admin/year-end',
+      color: 'from-amber-500 to-amber-600'
+    },
+    {
       title: 'Notices',
       description: 'Create and manage announcements',
       icon: Bell,
