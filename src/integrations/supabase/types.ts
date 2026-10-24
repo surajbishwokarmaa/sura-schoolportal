@@ -327,6 +327,54 @@ export type Database = {
           },
         ]
       }
+      student_year_log: {
+        Row: {
+          action: string
+          created_at: string
+          from_class: string | null
+          from_roll: string | null
+          from_section: string | null
+          id: string
+          note: string | null
+          performed_by: string | null
+          student_id: string
+          student_name: string | null
+          to_class: string | null
+          to_roll: string | null
+          to_section: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          from_class?: string | null
+          from_roll?: string | null
+          from_section?: string | null
+          id?: string
+          note?: string | null
+          performed_by?: string | null
+          student_id: string
+          student_name?: string | null
+          to_class?: string | null
+          to_roll?: string | null
+          to_section?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          from_class?: string | null
+          from_roll?: string | null
+          from_section?: string | null
+          id?: string
+          note?: string | null
+          performed_by?: string | null
+          student_id?: string
+          student_name?: string | null
+          to_class?: string | null
+          to_roll?: string | null
+          to_section?: string | null
+        }
+        Relationships: []
+      }
       students: {
         Row: {
           address: string | null
@@ -539,6 +587,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _next_free_roll: {
+        Args: { p_class: string; p_section: string }
+        Returns: string
+      }
+      _renumber_section: {
+        Args: {
+          p_class: string
+          p_order: string
+          p_section: string
+          p_uid: string
+        }
+        Returns: number
+      }
       calculate_grade_gpa: {
         Args: { marks: number }
         Returns: {
@@ -576,6 +637,22 @@ export type Database = {
         Returns: boolean
       }
       is_terminal_class: { Args: { class_name: string }; Returns: boolean }
+      promote_students: {
+        Args: { p_hold_back?: string[]; p_mapping: Json; p_renumber?: boolean }
+        Returns: Json
+      }
+      renumber_rolls: {
+        Args: { p_class?: string; p_order?: string; p_section?: string }
+        Returns: number
+      }
+      set_students_status: {
+        Args: {
+          p_ids: string[]
+          p_note?: string
+          p_status: Database["public"]["Enums"]["graduation_status"]
+        }
+        Returns: number
+      }
     }
     Enums: {
       graduation_status: "active" | "graduated" | "transferred" | "dropped"
