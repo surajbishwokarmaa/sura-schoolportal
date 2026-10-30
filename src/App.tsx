@@ -30,6 +30,10 @@ import ResultEntry from "./pages/teacher/ResultEntry";
 import ViewStudents from "./pages/teacher/ViewStudents";
 import ViewResults from "./pages/teacher/ViewResults";
 import TeacherViewNotices from "./pages/teacher/ViewNotices";
+import ClassTeacherPanel from "./pages/teacher/ClassTeacherPanel";
+import StudentAttendance from "./pages/student/Attendance";
+import StudentFees from "./pages/student/Fees";
+import FeesManagement from "./pages/admin/FeesManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,6 +73,10 @@ const App = () => (
               <Route path="/admin/system-guide" element={<SystemGuide />} />
               <Route path="/admin/year-end" element={<YearEndManagement />} />
               <Route path="/system-guide" element={<SystemGuide />} />
+              <Route path="/teacher/my-class" element={<ClassTeacherPanel />} />
+              <Route path="/student/attendance" element={<StudentAttendance />} />
+              <Route path="/student/fees" element={<StudentFees />} />
+              <Route path="/admin/fees" element={<FeesManagement />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </StudentProvider>

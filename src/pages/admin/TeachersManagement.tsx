@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -25,7 +24,21 @@ interface Teacher {
   phone: string | null;
   subjects: string[];
   classes_assigned: string[];
+  designation?: string;
+  class_teacher_class?: string | null;
+  class_teacher_section?: string | null;
 }
+
+const DESIGNATIONS = [
+  { value: 'principal', label: 'Principal' },
+  { value: 'vice_principal', label: 'Vice-Principal' },
+  { value: 'coordinator', label: 'Coordinator' },
+  { value: 'class_teacher', label: 'Class Teacher' },
+  { value: 'teacher', label: 'Subject Teacher' },
+  { value: 'accountant', label: 'Accountant' },
+  { value: 'staff', label: 'Staff' },
+];
+const designationLabel = (v?: string) => DESIGNATIONS.find(d => d.value === v)?.label || 'Teacher';
 
 interface Class {
   id: string;
@@ -45,7 +58,10 @@ const TeachersManagement = () => {
     name: '',
     phone: '',
     subjects: '',
-    password: ''
+    password: '',
+    designation: 'teacher',
+    ctClass: '',
+    ctSection: ''
   });
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,6 +121,18 @@ const TeachersManagement = () => {
 
     const subjectsArray = formData.subjects.split(',').map(s => s.trim()).filter(Boolean);
     const classesArray = selectedClasses;
+    const isCT = formData.designation === 'class_teacher';
+    if (isCT && (!formData.ctClass || !formData.ctSection)) {
+      toast({ title: 'Error', description: 'Choose the class and section for the class teacher', variant: 'destructive' });
+      setIsLoading(false);
+      return;
+    }
+    const extra = {
+      designation: formData.designation,
+      class_teacher_class: isCT ? formData.ctClass : null,
+      class_teacher_section: isCT ? formData.ctSection : null,
+    };
+    if (isCT && !classesArray.includes(formData.ctClass)) classesArray.push(formData.ctClass);
 
     if (editingTeacher) {
       const { error } = await supabase
@@ -113,7 +141,8 @@ const TeachersManagement = () => {
           name: formData.name,
           phone: formData.phone,
           subjects: subjectsArray,
-          classes_assigned: classesArray
+          classes_assigned: classesArray,
+          ...extra
         })
         .eq('id', editingTeacher.id);
 
@@ -143,17 +172,13 @@ const TeachersManagement = () => {
         return;
       }
 
-      if (!formData.password || formData.password.trim() === '') {
-        toast({
-          title: 'Error',
-          description: 'Password is required for new teachers',
-          variant: 'destructive'
-        });
+      const digits = formData.phone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        toast({ title: 'Error', description: 'Enter a valid 10-digit phone number', variant: 'destructive' });
         setIsLoading(false);
         return;
       }
-
-      const password = formData.password;
+      const password = `sura${digits.slice(0, 2)}${digits.slice(-2)}`;
       const generatedEmail = generateEmailFromPhone(formData.phone);
 
       // Create auth user via edge function
@@ -169,9 +194,15 @@ const TeachersManagement = () => {
 
       // Handle edge function errors
       if (authError) {
+        let msg = authError.message || 'Failed to create teacher account';
+        try {
+          const body = await (authError as any).context?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* ignore */ }
+        if (msg.includes('already exists')) msg = 'A teacher with this phone number already exists';
         toast({
-          title: 'Error',
-          description: authError.message || 'Failed to create teacher account',
+          title: 'Cannot Create Teacher',
+          description: msg,
           variant: 'destructive',
           duration: 10000
         });
@@ -214,13 +245,15 @@ const TeachersManagement = () => {
           email: generatedEmail,
           phone: formData.phone,
           subjects: subjectsArray,
-          classes_assigned: classesArray
+          classes_assigned: classesArray,
+          ...extra
         });
 
       if (error) {
+        console.error(error);
         toast({
           title: 'Error',
-          description: 'Failed to create teacher record',
+          description: 'Failed to create teacher record: ' + error.message,
           variant: 'destructive'
         });
       } else {
@@ -243,7 +276,10 @@ const TeachersManagement = () => {
       name: teacher.name,
       phone: teacher.phone || '',
       subjects: teacher.subjects.join(', '),
-      password: ''
+      password: '',
+      designation: teacher.designation || 'teacher',
+      ctClass: teacher.class_teacher_class || '',
+      ctSection: teacher.class_teacher_section || ''
     });
     setSelectedClasses(teacher.classes_assigned || []);
     setIsDialogOpen(true);
@@ -279,7 +315,10 @@ const TeachersManagement = () => {
       name: '',
       phone: '',
       subjects: '',
-      password: ''
+      password: '',
+      designation: 'teacher',
+      ctClass: '',
+      ctSection: ''
     });
     setSelectedClasses([]);
     setEditingTeacher(null);
@@ -363,15 +402,45 @@ const TeachersManagement = () => {
                     </p>
                   </div>
                   {!editingTeacher && (
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="password">Password *</Label>
-                      <PasswordInput
-                        id="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({...formData, password: e.target.value})}
-                        required
-                        minLength={8}
-                      />
+                    <p className="sm:col-span-2 text-xs text-muted-foreground">
+                      Password is automatic: "sura" + first 2 and last 2 digits of the phone (9807470285 → sura9885).
+                    </p>
+                  )}
+                  <div>
+                    <Label htmlFor="designation">Position *</Label>
+                    <select
+                      id="designation"
+                      value={formData.designation}
+                      onChange={(e) => setFormData({...formData, designation: e.target.value})}
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {DESIGNATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                    </select>
+                  </div>
+                  {formData.designation === 'class_teacher' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label>Class *</Label>
+                        <select
+                          value={formData.ctClass}
+                          onChange={(e) => setFormData({...formData, ctClass: e.target.value, ctSection: ''})}
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="">Select</option>
+                          {classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <Label>Section *</Label>
+                        <select
+                          value={formData.ctSection}
+                          onChange={(e) => setFormData({...formData, ctSection: e.target.value})}
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="">Select</option>
+                          {(classes.find(c => c.name === formData.ctClass)?.sections || []).map(sec => <option key={sec} value={sec}>{sec}</option>)}
+                        </select>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -430,6 +499,12 @@ const TeachersManagement = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-lg truncate">{teacher.name}</h3>
+                  <div className="flex flex-wrap gap-1 my-1">
+                    <Badge>{designationLabel(teacher.designation)}</Badge>
+                    {teacher.class_teacher_class && (
+                      <Badge variant="outline">{teacher.class_teacher_class} - {teacher.class_teacher_section}</Badge>
+                    )}
+                  </div>
                   {teacher.phone && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Phone className="w-3 h-3" />

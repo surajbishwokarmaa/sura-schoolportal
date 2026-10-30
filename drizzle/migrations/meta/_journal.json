@@ -8,6 +8,13 @@
       "when": 1792840154230,
       "tag": "0000_student_year_management",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793346966911,
+      "tag": "0001_designations_attendance_fees",
+      "breakpoints": true
     }
   ]
 }

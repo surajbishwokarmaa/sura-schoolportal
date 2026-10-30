@@ -93,6 +93,13 @@ const AdminDashboard = () => {
       color: 'from-amber-500 to-amber-600'
     },
     {
+      title: 'Fees & Bills',
+      description: 'Add fees, record payments, print bills',
+      icon: TrendingUp,
+      path: '/admin/fees',
+      color: 'from-emerald-500 to-emerald-600'
+    },
+    {
       title: 'Notices',
       description: 'Create and manage announcements',
       icon: Bell,
