@@ -135,6 +135,20 @@ const StudentDashboard = () => {
 
   const quickActions = [
     {
+      title: 'Attendance',
+      description: 'Calendar & charts',
+      icon: Calendar,
+      path: '/student/attendance',
+      color: 'from-teal-500 to-teal-600'
+    },
+    {
+      title: 'Fees & Bills',
+      description: 'Due, paid and bills',
+      icon: FileText,
+      path: '/student/fees',
+      color: 'from-rose-500 to-rose-600'
+    },
+    {
       title: 'View Marksheet',
       description: 'See all your results',
       icon: FileText,

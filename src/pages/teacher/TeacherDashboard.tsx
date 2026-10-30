@@ -101,6 +101,13 @@ const TeacherDashboard = () => {
 
   const quickActions = [
     {
+      title: 'My Class (Class Teacher)',
+      description: 'Daily attendance & student details',
+      icon: Users,
+      path: '/teacher/my-class',
+      color: 'from-rose-500 to-rose-600'
+    },
+    {
       title: 'Enter Results',
       description: 'Input student marks & grades',
       icon: Edit,
