@@ -103,7 +103,7 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Developer Credit */}
         <div className="text-center mb-4">
-          <p className="text-xs text-muted-foreground">Developed by Class 10 Lotus Student</p>
+          <p className="text-xs text-muted-foreground">Developed by ex-class 10 student</p>
         </div>
 
         <div className="text-center mb-12 animate-in fade-in duration-700">

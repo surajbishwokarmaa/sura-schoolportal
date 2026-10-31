@@ -60,6 +60,7 @@ const TeachersManagement = () => {
     subjects: '',
     password: '',
     designation: 'teacher',
+    isClassTeacher: false,
     ctClass: '',
     ctSection: ''
   });
@@ -120,8 +121,8 @@ const TeachersManagement = () => {
     setIsLoading(true);
 
     const subjectsArray = formData.subjects.split(',').map(s => s.trim()).filter(Boolean);
-    const classesArray = selectedClasses;
-    const isCT = formData.designation === 'class_teacher';
+    const classesArray = [...selectedClasses];
+    const isCT = formData.isClassTeacher || formData.designation === 'class_teacher';
     if (isCT && (!formData.ctClass || !formData.ctSection)) {
       toast({ title: 'Error', description: 'Choose the class and section for the class teacher', variant: 'destructive' });
       setIsLoading(false);
@@ -278,6 +279,7 @@ const TeachersManagement = () => {
       subjects: teacher.subjects.join(', '),
       password: '',
       designation: teacher.designation || 'teacher',
+      isClassTeacher: !!teacher.class_teacher_class,
       ctClass: teacher.class_teacher_class || '',
       ctSection: teacher.class_teacher_section || ''
     });
@@ -317,6 +319,7 @@ const TeachersManagement = () => {
       subjects: '',
       password: '',
       designation: 'teacher',
+      isClassTeacher: false,
       ctClass: '',
       ctSection: ''
     });
@@ -348,7 +351,7 @@ const TeachersManagement = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
             <Button variant="ghost" onClick={() => navigate('/admin')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
@@ -417,7 +420,13 @@ const TeachersManagement = () => {
                       {DESIGNATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                     </select>
                   </div>
-                  {formData.designation === 'class_teacher' && (
+                  <label className="flex items-center gap-3 self-end min-h-10">
+                    <input type="checkbox" checked={formData.isClassTeacher || formData.designation === 'class_teacher'}
+                      onChange={e => setFormData({ ...formData, isClassTeacher: e.target.checked })}
+                      disabled={formData.designation === 'class_teacher'} />
+                    <span className="text-sm font-medium">Also assign as class teacher</span>
+                  </label>
+                  {(formData.isClassTeacher || formData.designation === 'class_teacher') && (
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label>Class *</Label>
@@ -445,17 +454,16 @@ const TeachersManagement = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="subjects">Subjects (comma-separated) *</Label>
+                  <Label htmlFor="subjects">Teaching subjects (comma-separated)</Label>
                   <Input
                     id="subjects"
                     value={formData.subjects}
                     onChange={(e) => setFormData({...formData, subjects: e.target.value})}
                     placeholder="e.g., Mathematics, Science, English"
-                    required
                   />
                 </div>
                 <div>
-                  <Label>Assigned Classes *</Label>
+                  <Label>Teaching classes</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-40 overflow-y-auto border rounded-md p-3">
                     {classes.length > 0 ? (
                       classes.map((cls) => (

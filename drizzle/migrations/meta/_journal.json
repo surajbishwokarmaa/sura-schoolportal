@@ -15,6 +15,13 @@
       "when": 1793346966911,
       "tag": "0001_designations_attendance_fees",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793439462571,
+      "tag": "0002_school_results_and_fee_integrity",
+      "breakpoints": true
     }
   ]
 }
