@@ -1,3 +1,5 @@
+import { getCurrentNepaliYear } from './nepaliDate';
+
 export interface GradeResult {
   grade: string;
   gpa: number;
@@ -6,7 +8,7 @@ export interface GradeResult {
 }
 
 export function calculateGrade(marks: number, fullMarks: number = 100): GradeResult {
-  const percentage = (marks / fullMarks) * 100;
+  const percentage = fullMarks > 0 && Number.isFinite(marks) ? (marks / fullMarks) * 100 : 0;
   
   let grade: string;
   let gpa: number;
@@ -30,9 +32,12 @@ export function calculateGrade(marks: number, fullMarks: number = 100): GradeRes
   } else if (percentage >= 40) {
     grade = "C";
     gpa = 2.0;
+  } else if (percentage >= 35) {
+    grade = 'D';
+    gpa = 1.6;
   } else {
     grade = "NG";
-    gpa = 0.8;
+    gpa = 0;
     isPassing = false;
   }
 
@@ -44,23 +49,25 @@ export function calculateGrade(marks: number, fullMarks: number = 100): GradeRes
   };
 }
 
-export function calculateOverallGPA(results: Array<{ gpa: number }>): number {
+export function calculateOverallGPA(results: Array<{ gpa: number; creditHours?: number; grade?: string }>): number {
   if (results.length === 0) return 0;
-  const totalGPA = results.reduce((sum, r) => sum + r.gpa, 0);
-  return Math.round((totalGPA / results.length) * 100) / 100;
+  if (results.some(r => r.grade === 'NG')) return 0;
+  const credits = results.reduce((sum, r) => sum + (r.creditHours ?? 1), 0);
+  const totalGPA = results.reduce((sum, r) => sum + r.gpa * (r.creditHours ?? 1), 0);
+  return credits > 0 ? Math.round(totalGPA / credits * 100) / 100 : 0;
+}
+
+export function calculateSubjectGrade(theory: number, practical: number, subject: { theory_full_marks: number; practical_full_marks: number; total_marks: number; theory_pass_percentage?: number; practical_pass_percentage?: number }): GradeResult {
+  const result = calculateGrade(theory + practical, subject.total_marks);
+  const theoryFail = subject.theory_full_marks > 0 && theory / subject.theory_full_marks * 100 < (subject.theory_pass_percentage ?? 0);
+  const practicalFail = subject.practical_full_marks > 0 && practical / subject.practical_full_marks * 100 < (subject.practical_pass_percentage ?? 0);
+  return theoryFail || practicalFail ? { ...result, grade: 'NG', gpa: 0, isPassing: false } : result;
 }
 
 // Calculate grade from marks for a specific component (theory/practical)
 export function getGradeFromMarks(marks: number, fullMarks: number): string {
-  const percentage = (marks / fullMarks) * 100;
-  
-  if (percentage >= 90) return "A+";
-  if (percentage >= 80) return "A";
-  if (percentage >= 70) return "B+";
-  if (percentage >= 60) return "B";
-  if (percentage >= 50) return "C+";
-  if (percentage >= 40) return "C";
-  return "NG";
+  if (fullMarks <= 0) return '—';
+  return calculateGrade(marks, fullMarks).grade;
 }
 
 // Get final remarks based on percentage and pass status
@@ -72,37 +79,33 @@ export function getFinalRemarks(percentage: number, allPassing: boolean): string
   if (percentage >= 60) return "Good";
   if (percentage >= 50) return "Satisfactory";
   if (percentage >= 40) return "Pass";
+  if (percentage >= 35) return "Basic";
   return "Needs Improvement";
 }
 
 // Get current academic year in single format (e.g., "2081")
 export function getCurrentAcademicYear(): string {
-  const now = new Date();
-  // Nepal academic year: AD year + 56.7 approximately
-  // The Nepali year is about 56-57 years ahead of AD
-  const adYear = now.getFullYear();
-  // Nepali new year starts around mid-April
-  // Before mid-April, use current AD year + 56, after mid-April use AD year + 57
-  const nepaliYear = adYear + 56 + (now.getMonth() >= 3 ? 1 : 0);
-  return nepaliYear.toString();
+  return String(getCurrentNepaliYear());
 }
 
 export function getGradeColor(grade: string): string {
   switch (grade) {
     case "A+":
-      return "text-green-600 dark:text-green-400";
+      return "text-primary";
     case "A":
-      return "text-green-500 dark:text-green-300";
+      return "text-primary";
     case "B+":
-      return "text-blue-600 dark:text-blue-400";
+      return "text-primary";
     case "B":
-      return "text-blue-500 dark:text-blue-300";
+      return "text-primary";
     case "C+":
-      return "text-yellow-600 dark:text-yellow-400";
+      return "text-muted-foreground";
     case "C":
-      return "text-yellow-500 dark:text-yellow-300";
+      return "text-muted-foreground";
+    case 'D':
+      return 'text-muted-foreground';
     case "NG":
-      return "text-red-600 dark:text-red-400";
+      return "text-destructive";
     default:
       return "text-muted-foreground";
   }
