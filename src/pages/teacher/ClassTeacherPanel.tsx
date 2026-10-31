@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Check, Edit2, Save } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { SectionResults } from '@/components/SectionResults';
+import { fetchAllPages } from '@/lib/pagedQuery';
 
 type Status = 'present' | 'absent' | 'late' | 'leave';
 const STATUSES: { v: Status; label: string; cls: string }[] = [
@@ -46,8 +48,9 @@ export default function ClassTeacherPanel() {
   }, [user, userRole, loading]);
 
   const loadTeacher = async () => {
+    if (!user) return;
     const { data } = await supabase.from('teachers')
-      .select('class_teacher_class, class_teacher_section').eq('user_id', user!.id).maybeSingle();
+      .select('class_teacher_class, class_teacher_section').eq('user_id', user.id).maybeSingle();
     if (data?.class_teacher_class && data.class_teacher_section) {
       const c = { cls: data.class_teacher_class, sec: data.class_teacher_section };
       setCt(c);
@@ -61,8 +64,9 @@ export default function ClassTeacherPanel() {
   useEffect(() => { if (ct) loadAttendance(); }, [ct, date]);
 
   const loadAttendance = async () => {
+    if (!ct) return;
     const { data } = await supabase.from('attendance').select('student_id, status')
-      .eq('class', ct!.cls).eq('section', ct!.sec).eq('date', date);
+      .eq('class', ct.cls).eq('section', ct.sec).eq('date', date);
     const m: Record<string, Status> = {};
     (data || []).forEach(r => { m[r.student_id] = r.status as Status; });
     setMarks(m);
@@ -77,11 +81,11 @@ export default function ClassTeacherPanel() {
   const markAll = (s: Status) => setMarks(Object.fromEntries(students.map(st => [st.id, s])));
 
   const save = async () => {
-    if (!ct) return;
+    if (!ct || !user) return;
     if (date > today()) { toast({ title: 'Cannot mark future dates', variant: 'destructive' }); return; }
     setSaving(true);
     const rows = Object.entries(marks).map(([student_id, status]) => ({
-      student_id, status, date, class: ct.cls, section: ct.sec, marked_by: user!.id,
+      student_id, status, date, class: ct.cls, section: ct.sec, marked_by: user.id,
     }));
     const { error } = await supabase.from('attendance').upsert(rows, { onConflict: 'student_id,date' });
     setSaving(false);
@@ -112,11 +116,11 @@ export default function ClassTeacherPanel() {
       </Button>
       {!ct ? (
         <Card className="p-8 text-center text-muted-foreground">
-          You are not set as a class teacher. Ask the admin to set your position to "Class Teacher".
+          No class-teacher assignment. Contact your school administrator.
         </Card>
       ) : (
         <Tabs defaultValue="attendance">
-          <TabsList className="mb-4"><TabsTrigger value="attendance">Attendance</TabsTrigger><TabsTrigger value="students">Students ({students.length})</TabsTrigger></TabsList>
+          <TabsList className="mb-4 flex w-full sm:w-fit"><TabsTrigger value="attendance">Attendance</TabsTrigger><TabsTrigger value="students">Students ({students.length})</TabsTrigger><TabsTrigger value="results">Results</TabsTrigger></TabsList>
           <TabsContent value="attendance">
             <Card className="p-4 mb-4 flex flex-wrap items-end gap-3">
               <div><Label>Date</Label><Input type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} /></div>
@@ -131,16 +135,16 @@ export default function ClassTeacherPanel() {
             </Card>
             <div className="space-y-2">
               {students.map(s => (
-                <Card key={s.id} className="p-3 flex items-center gap-3">
+                <Card key={s.id} className="p-3 flex flex-wrap items-center gap-3">
                   <span className="w-8 text-muted-foreground text-sm">{s.roll_no}</span>
-                  <span className="flex-1 font-medium truncate">{s.name}</span>
-                  <div className="flex gap-1">
+                  <span className="flex-1 min-w-32 font-medium break-words">{s.name}</span>
+                  <div className="flex gap-1 ml-auto">
                     {STATUSES.map(st => (
-                      <button key={st.v} type="button" aria-label={st.v}
+                      <Button key={st.v} type="button" aria-label={`${st.v} — ${s.name}`} variant="outline"
                         onClick={() => setMarks(m => ({ ...m, [s.id]: st.v }))}
-                        className={`w-9 h-9 rounded-md text-xs font-semibold border transition ${marks[s.id] === st.v ? st.cls : 'bg-background'}`}>
+                        className={`w-10 h-10 p-0 rounded-md text-xs font-semibold border transition ${marks[s.id] === st.v ? st.cls : 'bg-background'}`}>
                         {st.label}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </Card>
@@ -162,6 +166,7 @@ export default function ClassTeacherPanel() {
               ))}
             </div>
           </TabsContent>
+          <TabsContent value="results"><SectionResults className={ct.cls} section={ct.sec} students={students} /></TabsContent>
         </Tabs>
       )}
       <Dialog open={!!editing} onOpenChange={o => !o && setEditing(null)}>
