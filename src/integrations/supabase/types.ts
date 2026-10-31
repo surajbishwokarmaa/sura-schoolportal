@@ -373,6 +373,7 @@ export type Database = {
       }
       results: {
         Row: {
+          academic_year_bs: string
           academic_year_id: string | null
           class: string
           created_at: string
@@ -393,6 +394,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          academic_year_bs?: string
           academic_year_id?: string | null
           class: string
           created_at?: string
@@ -413,6 +415,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          academic_year_bs?: string
           academic_year_id?: string | null
           class?: string
           created_at?: string
@@ -580,36 +583,45 @@ export type Database = {
         Row: {
           class_id: string | null
           created_at: string | null
+          credit_hours: number
           id: string
           is_equal_split: boolean | null
           name: string
           practical_full_marks: number
+          practical_pass_percentage: number
           subject_type: string
           theory_full_marks: number
+          theory_pass_percentage: number
           total_marks: number
           updated_at: string | null
         }
         Insert: {
           class_id?: string | null
           created_at?: string | null
+          credit_hours?: number
           id?: string
           is_equal_split?: boolean | null
           name: string
           practical_full_marks?: number
+          practical_pass_percentage?: number
           subject_type?: string
           theory_full_marks?: number
+          theory_pass_percentage?: number
           total_marks?: number
           updated_at?: string | null
         }
         Update: {
           class_id?: string | null
           created_at?: string | null
+          credit_hours?: number
           id?: string
           is_equal_split?: boolean | null
           name?: string
           practical_full_marks?: number
+          practical_pass_percentage?: number
           subject_type?: string
           theory_full_marks?: number
+          theory_pass_percentage?: number
           total_marks?: number
           updated_at?: string | null
         }
@@ -742,6 +754,18 @@ export type Database = {
           p_order: string
           p_section: string
           p_uid: string
+        }
+        Returns: number
+      }
+      add_section_fee: {
+        Args: {
+          p_amount: number
+          p_batch: string
+          p_class: string
+          p_due: string
+          p_section: string
+          p_student_id: string
+          p_title: string
         }
         Returns: number
       }
