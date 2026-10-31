@@ -89,7 +89,6 @@ const StudentsManagement = () => {
 
   const fetchStudents = async () => {
     try {
-      const data = await fetchAllPages(fromTo => Promise.resolve({ data: [], error: null }));
       const roster = await fetchAllPages((from, to) => supabase.from('students').select('*')
         .order('class').order('section').order('roll_no').order('id').range(from, to));
       setStudents(roster as unknown as Student[]);
