@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllPages } from '@/lib/pagedQuery';
 import {
   Dialog,
   DialogContent,
@@ -87,21 +88,17 @@ const StudentsManagement = () => {
   }, [user, userRole, loading, navigate]);
 
   const fetchStudents = async () => {
-    const { data, error } = await supabase
-      .from('students')
-      .select('*')
-      .order('class', { ascending: true })
-      .order('section', { ascending: true })
-      .order('roll_no', { ascending: true });
-
-    if (error) {
+    try {
+      const data = await fetchAllPages(fromTo => Promise.resolve({ data: [], error: null }));
+      const roster = await fetchAllPages((from, to) => supabase.from('students').select('*')
+        .order('class').order('section').order('roll_no').order('id').range(from, to));
+      setStudents(roster as unknown as Student[]);
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to fetch students',
         variant: 'destructive'
       });
-    } else {
-      setStudents((data as any) || []);
     }
   };
 
