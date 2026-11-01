@@ -265,7 +265,7 @@ const ViewMarksheet = () => {
     const totalMarks = completedResults.reduce((sum, r) => sum + (r.total_marks || 0), 0);
     const maxMarks = completedResults.reduce((sum, r) => sum + r.totalFull, 0);
     const percentage = maxMarks > 0 ? (totalMarks / maxMarks) * 100 : 0;
-    const validResults = completedResults.filter(r => r.gpa !== null).map(r => ({ gpa: r.gpa as number }));
+    const validResults = completedResults.filter(r => r.gpa !== null).map(r => ({ gpa: r.gpa as number, grade: r.grade ?? undefined }));
     const gpa = validResults.length > 0 ? calculateOverallGPA(validResults) : 0;
     
     // Check if all subjects are passing
