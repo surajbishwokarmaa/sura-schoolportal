@@ -301,7 +301,7 @@ const ResultEntry = () => {
     if (totalMarks >= 50) return { grade: 'C+', gpa: 2.4 };
     if (totalMarks >= 40) return { grade: 'C', gpa: 2.0 };
     if (totalMarks >= 35) return { grade: 'D', gpa: 1.6 };
-    return { grade: 'NG', gpa: 0.8 };
+    return { grade: 'NG', gpa: 0 };
   };
 
   const updateResult = (studentId: string, field: 'theory_marks' | 'practical_marks', value: string) => {
