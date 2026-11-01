@@ -160,7 +160,7 @@ const TeacherAuth = () => {
               </Button>
 
               <div className="text-center text-xs sm:text-sm text-muted-foreground mt-4">
-                <p>Contact administrator if you forgot your credentials</p>
+                <button type="button" className="text-primary underline" onClick={() => navigate('/forgot-password')}>Forgot password? Send a request to admin</button>
               </div>
             </form>
           </Card>
