@@ -173,7 +173,7 @@ const AdminDashboard = () => {
       {/* Quick Actions */}
       <div className="mb-6 sm:mb-8">
         <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

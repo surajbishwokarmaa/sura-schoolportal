@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, TrendingUp, Download, Users, Bell, Calendar, RefreshCw } from 'lucide-react';
+import { FileText, TrendingUp, Download, Users, Bell, Calendar, RefreshCw, KeyRound, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
@@ -248,7 +248,7 @@ const StudentDashboard = () => {
       {/* Date Display */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Calendar className="w-4 h-4" />
+          <Calendar className="w-4 h-4 shrink-0" />
           <span>{nepaliDate.nepali}</span>
           <span className="text-xs">({nepaliDate.english})</span>
         </div>
@@ -317,7 +317,7 @@ const StudentDashboard = () => {
       {/* Quick Actions */}
       <div className="mb-6 sm:mb-8">
         <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
           Quick Actions
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
