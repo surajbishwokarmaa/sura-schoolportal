@@ -217,6 +217,12 @@ const BulkUploadManagement = () => {
       return;
     }
 
+    if (type === 'teachers' && (!teacherPhotos || teacherPhotos.length === 0)) {
+      toast({ title: "Teacher photos required", description: "Attach teacher photos first (e.g. Ramesh_Thapa.jpg), then upload the Excel file.", variant: "destructive" });
+      event.target.value = '';
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(5);
     setUploadSummary(null);
@@ -745,7 +751,7 @@ const BulkUploadManagement = () => {
                   className="w-full text-xs sm:text-sm"
                 >
                   <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                  {teacherPhotos ? `📸 ${teacherPhotos.length} photos attached` : 'Attach Photos (optional)'}
+                  {teacherPhotos ? `📸 ${teacherPhotos.length} photos attached` : 'Step 1: Attach Teacher Photos (required)'}
                 </Button>
                 {teacherPhotos && (
                   <div className="flex items-center justify-between text-xs text-muted-foreground">

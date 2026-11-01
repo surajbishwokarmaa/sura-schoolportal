@@ -24,6 +24,7 @@ const ForgotPassword = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [who, setWho] = useState<'student' | 'teacher'>('student');
   
   const [formData, setFormData] = useState({
     studentName: '',
@@ -37,7 +38,8 @@ const ForgotPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validation = forgotPasswordSchema.safeParse(formData);
+    const data = who === 'teacher' ? { ...formData, rollNo: '-', className: 'Teacher' } : formData;
+    const validation = forgotPasswordSchema.safeParse(data);
     if (!validation.success) {
       toast({
         title: 'Validation Error',
@@ -53,11 +55,11 @@ const ForgotPassword = () => {
         .from('password_reset_requests')
         .insert({
           student_name: formData.studentName.trim(),
-          roll_no: formData.rollNo.trim(),
-          class: formData.className.trim(),
+          roll_no: data.rollNo.trim(),
+          class: data.className.trim(),
           parent_phone: formData.parentPhone.trim(),
           email: formData.email.trim() || null,
-          message: formData.message.trim() || 'Forgot password request',
+          message: (who === 'teacher' ? '[TEACHER] ' : '') + (formData.message.trim() || 'Forgot password request'),
         });
 
       if (error) throw error;
@@ -113,16 +115,23 @@ const ForgotPassword = () => {
             </div>
             <h1 className="text-2xl font-bold">Forgot Password</h1>
             <p className="text-muted-foreground mt-2">
-              Submit your details and the admin will provide you with a new password
+              Students, parents and teachers: submit your details and the admin will provide you with a new password
             </p>
           </div>
 
           <Card className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-muted">
+                {(['student', 'teacher'] as const).map(r => (
+                  <Button key={r} type="button" size="sm" variant={who === r ? 'default' : 'ghost'} onClick={() => setWho(r)}>
+                    {r === 'student' ? 'I am a Student / Parent' : 'I am a Teacher'}
+                  </Button>
+                ))}
+              </div>
               <div>
-                <Label htmlFor="studentName">Student Name *</Label>
+                <Label htmlFor="studentName">{who === 'teacher' ? 'Teacher Full Name *' : 'Student Name *'}</Label>
                 <div className="relative mt-1">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="studentName"
                     placeholder="Enter student's full name"
@@ -135,10 +144,11 @@ const ForgotPassword = () => {
                 </div>
               </div>
 
+              {who === 'student' && <>
               <div>
                 <Label htmlFor="rollNo">Roll Number *</Label>
                 <div className="relative mt-1">
-                  <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="rollNo"
                     placeholder="Enter roll number"
@@ -154,7 +164,7 @@ const ForgotPassword = () => {
               <div>
                 <Label htmlFor="className">Class *</Label>
                 <div className="relative mt-1">
-                  <BookOpen className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="className"
                     placeholder="e.g., Grade 5, Class 10"
@@ -167,14 +177,15 @@ const ForgotPassword = () => {
                 </div>
               </div>
 
+              </>}
               <div>
                 <Label htmlFor="parentPhone">Registered Mobile Number *</Label>
                 <div className="relative mt-1">
-                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="parentPhone"
                     type="tel"
-                    placeholder="Parent's phone number"
+                    placeholder={who === 'teacher' ? 'Your login phone number' : "Parent's phone number"}
                     value={formData.parentPhone}
                     onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
                     className="pl-10"
@@ -187,7 +198,7 @@ const ForgotPassword = () => {
               <div>
                 <Label htmlFor="email">Email (Optional)</Label>
                 <div className="relative mt-1">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"

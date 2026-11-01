@@ -26,15 +26,15 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <Card 
-      className={cn("p-6 hover:shadow-lg transition-all duration-300 animate-fade-in", className)}
+      className={cn("p-4 sm:p-6 hover:shadow-lg transition-all duration-300 animate-fade-in", className)}
       onClick={onClick}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <h3 className="text-3xl font-bold mt-2">{value}</h3>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground leading-snug">{title}</p>
+          <h3 className="text-2xl sm:text-3xl font-bold mt-2 leading-none">{value}</h3>
           {description && (
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2 leading-snug">{description}</p>
           )}
           {trend && (
             <div className="flex items-center mt-2 text-sm">
@@ -50,9 +50,9 @@ export function StatCard({
             </div>
           )}
         </div>
-        <div className="ml-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <Icon className="w-6 h-6 text-primary" />
+        <div className="shrink-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
           </div>
         </div>
       </div>

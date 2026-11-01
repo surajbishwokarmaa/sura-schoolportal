@@ -126,12 +126,20 @@ export default function ClassTeacherPanel() {
               <div><Label>Date</Label><Input type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} /></div>
               <Button variant="outline" onClick={() => markAll('present')}><Check className="w-4 h-4 mr-1" />All present</Button>
               <div className="flex gap-2 text-sm">
-                <Badge>P {counts.present}</Badge><Badge variant="destructive">A {counts.absent}</Badge>
-                <Badge variant="secondary">L {counts.late}</Badge><Badge variant="outline">Lv {counts.leave}</Badge>
+                <Badge>Present {counts.present}</Badge><Badge variant="destructive">Absent {counts.absent}</Badge>
+                <Badge variant="secondary">Late {counts.late}</Badge><Badge variant="outline">Leave {counts.leave}</Badge>
               </div>
               <Button onClick={save} disabled={saving || !Object.keys(marks).length} className="ml-auto">
                 <Save className="w-4 h-4 mr-1" />{saving ? 'Saving...' : 'Save'}
               </Button>
+            </Card>
+            <Card className="p-3 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+              {STATUSES.map(st => (
+                <div key={st.v} className="flex items-center gap-2">
+                  <span className={`w-8 h-8 shrink-0 rounded-md flex items-center justify-center text-xs font-semibold ${st.cls}`}>{st.label}</span>
+                  <span>{{ present: 'Present', absent: 'Absent', late: 'Late (came late)', leave: 'Leave (approved)' }[st.v]}</span>
+                </div>
+              ))}
             </Card>
             <div className="space-y-2">
               {students.map(s => (
@@ -140,7 +148,7 @@ export default function ClassTeacherPanel() {
                   <span className="flex-1 min-w-32 font-medium break-words">{s.name}</span>
                   <div className="flex gap-1 ml-auto">
                     {STATUSES.map(st => (
-                      <Button key={st.v} type="button" aria-label={`${st.v} — ${s.name}`} variant="outline"
+                      <Button key={st.v} type="button" aria-label={`${st.v} — ${s.name}`} title={st.v} variant="outline"
                         onClick={() => setMarks(m => ({ ...m, [s.id]: st.v }))}
                         className={`w-10 h-10 p-0 rounded-md text-xs font-semibold border transition ${marks[s.id] === st.v ? st.cls : 'bg-background'}`}>
                         {st.label}
