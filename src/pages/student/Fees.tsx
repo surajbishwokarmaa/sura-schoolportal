@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { printBill } from '@/lib/printBill';
+import { formatNPR } from '@/lib/feeLedger';
 
 interface Inv { id: string; title: string; amount: number; due_date: string | null; bill_no: string; created_at: string }
 interface Pay { id: string; invoice_id: string; amount: number; paid_on: string; method: string; receipt_no: string }
@@ -38,9 +39,9 @@ export default function StudentFees() {
     <DashboardLayout title="Fees & Bills" subtitle={s?.name}>
       <Button variant="ghost" onClick={() => navigate('/student')} className="mb-4"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <Card className="p-4"><p className="text-sm text-muted-foreground">Total</p><p className="text-xl font-bold">Rs. {totals.total}</p></Card>
-        <Card className="p-4"><p className="text-sm text-muted-foreground">Paid</p><p className="text-xl font-bold text-primary">Rs. {totals.paid}</p></Card>
-        <Card className="p-4"><p className="text-sm text-muted-foreground">Due</p><p className="text-xl font-bold text-destructive">Rs. {totals.due}</p></Card>
+        <Card className="p-4"><p className="text-sm text-muted-foreground">Total</p><p className="text-base sm:text-xl font-bold break-all">{formatNPR(totals.total)}</p></Card>
+        <Card className="p-4"><p className="text-sm text-muted-foreground">Paid</p><p className="text-base sm:text-xl font-bold break-all text-primary">{formatNPR(totals.paid)}</p></Card>
+        <Card className="p-4"><p className="text-sm text-muted-foreground">Due</p><p className="text-base sm:text-xl font-bold break-all text-destructive">{formatNPR(totals.due)}</p></Card>
       </div>
       <h3 className="font-semibold mb-2">Bills</h3>
       <div className="space-y-2 mb-6">
@@ -53,8 +54,8 @@ export default function StudentFees() {
                 <p className="text-xs text-muted-foreground">{i.bill_no} {i.due_date && `· due ${i.due_date}`}</p>
               </div>
               <div className="text-right text-sm">
-                <p>Rs. {i.amount}</p>
-                {due <= 0 ? <Badge>Paid</Badge> : <Badge variant="destructive">Due Rs. {due}</Badge>}
+                <p>{formatNPR(Number(i.amount))}</p>
+                {due <= 0 ? <Badge>Paid</Badge> : <Badge variant="destructive">Due {formatNPR(due)}</Badge>}
               </div>
               <Button variant="outline" size="sm" onClick={() => s && printBill({
                 billNo: i.bill_no, title: i.title, studentName: s.name, className: `${s.class} ${s.section}`,
@@ -72,7 +73,7 @@ export default function StudentFees() {
           <div className="space-y-2">
             {pays.map(p => (
               <Card key={p.id} className="p-3 flex justify-between text-sm">
-                <span>{p.paid_on} · {p.receipt_no} · {p.method}</span><span className="font-semibold">Rs. {p.amount}</span>
+                <span>{p.paid_on} · {p.receipt_no} · {p.method}</span><span className="font-semibold">{formatNPR(Number(p.amount))}</span>
               </Card>
             ))}
           </div>

@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Plus, Printer, Wallet } from 'lucide-react';
 import { printBill } from '@/lib/printBill';
+import { buildFeeLedger, formatNPR } from '@/lib/feeLedger';
+import { fetchAllPages } from '@/lib/pagedQuery';
 
 interface Cls { name: string; sections: string[] }
 interface St { id: string; name: string; roll_no: string; class: string; section: string }
@@ -34,6 +36,7 @@ export default function FeesManagement() {
   const [payFor, setPayFor] = useState<St | null>(null);
   const [pay, setPay] = useState({ invoiceId: '', amount: '', method: 'cash' });
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState(''); const [onlyDue, setOnlyDue] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || userRole !== 'admin')) navigate('/auth/admin');
@@ -48,24 +51,26 @@ export default function FeesManagement() {
     setStudents(list);
     const ids = list.map(s => s.id);
     if (!ids.length) { setInvs([]); setPays([]); return; }
-    const [{ data: i }, { data: p }] = await Promise.all([
-      supabase.from('fee_invoices').select('*').in('student_id', ids),
-      supabase.from('fee_payments').select('*').in('student_id', ids),
-    ]);
-    setInvs((i || []) as Inv[]); setPays((p || []) as Pay[]);
+    const chunks: string[][] = []; for (let k = 0; k < ids.length; k += 200) chunks.push(ids.slice(k, k + 200));
+    const i: Inv[] = [], p: Pay[] = [];
+    for (const c of chunks) {
+      const [a, b] = await Promise.all([
+        fetchAllPages((f, t) => supabase.from('fee_invoices').select('*').in('student_id', c).order('id').range(f, t)),
+        fetchAllPages((f, t) => supabase.from('fee_payments').select('*').in('student_id', c).order('id').range(f, t)),
+      ]);
+      i.push(...(a as Inv[])); p.push(...(b as Pay[]));
+    }
+    setInvs(i); setPays(p);
   };
   useEffect(() => { load(); }, [cls, sec]);
 
-  const sum = (id: string) => {
-    const total = invs.filter(i => i.student_id === id).reduce((a, i) => a + Number(i.amount), 0);
-    const paid = pays.filter(p => p.student_id === id).reduce((a, p) => a + Number(p.amount), 0);
-    return { total, paid, due: total - paid };
-  };
+  const ledger = useMemo(() => buildFeeLedger(invs, pays), [invs, pays]);
+  const sum = (id: string) => ledger.byStudent.get(id) || { total: 0, paid: 0, due: 0 };
   const classTotals = useMemo(() => {
-    const total = invs.reduce((a, i) => a + Number(i.amount), 0);
-    const paid = pays.reduce((a, p) => a + Number(p.amount), 0);
-    return { total, paid, due: total - paid };
-  }, [invs, pays]);
+    let total = 0, paid = 0; for (const e of ledger.byStudent.values()) { total += e.total; paid += e.paid; }
+    return { total, paid, due: Math.max(0, total - paid) };
+  }, [ledger]);
+  const shown = students.filter(s => (!q || s.name.toLowerCase().includes(q.toLowerCase()) || s.roll_no === q) && (!onlyDue || sum(s.id).due > 0));
 
   const addFee = async () => {
     const amount = Number(fee.amount);
@@ -81,7 +86,7 @@ export default function FeesManagement() {
     else { toast({ title: `Fee added for ${rows.length} student(s)` }); setFeeOpen(null); setFee({ title: '', amount: '', due: '' }); load(); }
   };
 
-  const invPaid = (id: string) => pays.filter(p => p.invoice_id === id).reduce((a, p) => a + Number(p.amount), 0);
+  const invPaid = (id: string) => ledger.byInvoice.get(id) || 0;
 
   const recordPay = async () => {
     const inv = invs.find(i => i.id === pay.invoiceId);
@@ -112,27 +117,31 @@ export default function FeesManagement() {
       </Card>
       {students.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-4">
-          <Card className="p-3"><p className="text-xs text-muted-foreground">Total</p><p className="font-bold">Rs. {classTotals.total}</p></Card>
-          <Card className="p-3"><p className="text-xs text-muted-foreground">Collected</p><p className="font-bold text-primary">Rs. {classTotals.paid}</p></Card>
-          <Card className="p-3"><p className="text-xs text-muted-foreground">Due</p><p className="font-bold text-destructive">Rs. {classTotals.due}</p></Card>
+          <Card className="p-3"><p className="text-xs text-muted-foreground">Total</p><p className="font-bold text-sm sm:text-base break-all">{formatNPR(classTotals.total)}</p></Card>
+          <Card className="p-3"><p className="text-xs text-muted-foreground">Collected</p><p className="font-bold text-sm sm:text-base break-all text-primary">{formatNPR(classTotals.paid)}</p></Card>
+          <Card className="p-3"><p className="text-xs text-muted-foreground">Due</p><p className="font-bold text-sm sm:text-base break-all text-destructive">{formatNPR(classTotals.due)}</p></Card>
         </div>
       )}
+      {students.length > 0 && <div className="flex flex-wrap gap-3 mb-3 items-center">
+        <Input className="flex-1 min-w-[10rem]" placeholder="Search name or roll" value={q} onChange={e => setQ(e.target.value)} />
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlyDue} onChange={e => setOnlyDue(e.target.checked)} />Only with due</label>
+      </div>}
       <div className="space-y-2">
-        {students.map(s => {
+        {shown.map(s => {
           const t = sum(s.id);
           return (
             <Card key={s.id} className="p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="w-8 text-sm text-muted-foreground">{s.roll_no}</span>
                 <span className="flex-1 font-medium truncate">{s.name}</span>
-                <Badge variant={t.due > 0 ? 'destructive' : 'default'}>Due Rs. {t.due}</Badge>
+                <Badge variant={t.due > 0 ? 'destructive' : 'default'}>Due {formatNPR(t.due)}</Badge>
                 <Button size="sm" variant="outline" onClick={() => setFeeOpen({ studentId: s.id })}><Plus className="w-4 h-4" /></Button>
                 <Button size="sm" onClick={() => setPayFor(s)} disabled={t.due <= 0}><Wallet className="w-4 h-4 mr-1" />Pay</Button>
               </div>
               <div className="flex flex-wrap gap-1 mt-2">
                 {invs.filter(i => i.student_id === s.id).map(i => (
                   <Button key={i.id} size="sm" variant="ghost" className="h-7 text-xs" onClick={() => bill(s, i)}>
-                    <Printer className="w-3 h-3 mr-1" />{i.title} (Rs. {i.amount})
+                    <Printer className="w-3 h-3 mr-1" />{i.title} ({formatNPR(Number(i.amount))}{invPaid(i.id) >= Number(i.amount) ? ' ✓' : ''})
                   </Button>
                 ))}
               </div>
@@ -164,7 +173,7 @@ export default function FeesManagement() {
             }}>
               <option value="">Select</option>
               {invs.filter(i => i.student_id === payFor?.id && Number(i.amount) - invPaid(i.id) > 0).map(i =>
-                <option key={i.id} value={i.id}>{i.title} — due Rs. {Number(i.amount) - invPaid(i.id)}</option>)}
+                <option key={i.id} value={i.id}>{i.title} — due {formatNPR(Number(i.amount) - invPaid(i.id))}</option>)}
             </select></div>
             <div><Label>Amount</Label><Input type="number" value={pay.amount} onChange={e => setPay({ ...pay, amount: e.target.value })} /></div>
             <div><Label>Method</Label><select className={sel} value={pay.method} onChange={e => setPay({ ...pay, method: e.target.value })}>
