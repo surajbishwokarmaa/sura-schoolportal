@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -20,10 +21,12 @@ const passwordSchema = z.object({
 });
 
 const ChangePassword = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
+  const home = userRole === 'admin' ? '/admin' : userRole === 'teacher' ? '/teacher' : '/student';
   const navigate = useNavigate();
   const { toast } = useToast();
   
+  useEffect(() => { if (!user) { const t = setTimeout(() => !user && navigate('/'), 1500); return () => clearTimeout(t); } }, [user]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -84,7 +87,7 @@ const ChangePassword = () => {
       setNewPassword('');
       setConfirmPassword('');
       
-      navigate('/admin');
+      navigate(home);
     } catch (error: any) {
       console.error('Error changing password:', error);
       toast({
@@ -100,7 +103,7 @@ const ChangePassword = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
       <div className="container mx-auto px-4 py-6 sm:py-8">
-        <Button variant="ghost" onClick={() => navigate('/admin')} className="mb-4 sm:mb-6">
+        <Button variant="ghost" onClick={() => navigate(home)} className="mb-4 sm:mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Dashboard
         </Button>
@@ -112,7 +115,7 @@ const ChangePassword = () => {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">Change Password</h1>
-              <p className="text-muted-foreground text-sm">Update your admin account password</p>
+              <p className="text-muted-foreground text-sm">Update your own account password</p>
             </div>
           </div>
 

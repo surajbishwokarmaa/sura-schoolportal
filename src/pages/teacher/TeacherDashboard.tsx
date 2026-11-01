@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { BookOpen, FileText, Users, Edit, Eye, TrendingUp, Bell, Calendar } from 'lucide-react';
+import { BookOpen, FileText, Users, Edit, Eye, TrendingUp, Bell, Calendar , KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
@@ -134,6 +134,20 @@ const TeacherDashboard = () => {
       icon: Bell,
       path: '/teacher/notices',
       color: 'from-amber-500 to-amber-600'
+    },
+    {
+      title: 'Change Password',
+      description: 'Set your own password',
+      icon: KeyRound,
+      path: '/change-password',
+      color: 'from-slate-500 to-slate-600'
+    },
+    {
+      title: 'System Guide',
+      description: 'How to use the portal',
+      icon: BookOpen,
+      path: '/system-guide',
+      color: 'from-cyan-500 to-cyan-600'
     }
   ];
 
@@ -147,8 +161,8 @@ const TeacherDashboard = () => {
       subtitle="Manage classes and student results"
     >
       {/* Date Display */}
-      <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-        <Calendar className="w-4 h-4" />
+      <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground leading-none">
+        <Calendar className="w-4 h-4 shrink-0" />
         <span>{nepaliDate.nepali}</span>
         <span className="text-xs">({nepaliDate.english})</span>
       </div>
@@ -156,7 +170,7 @@ const TeacherDashboard = () => {
       {/* Teacher Profile Card */}
       {teacher && (
         <Card className="p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
-          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
             <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-primary/20">
               <AvatarImage src={teacher.photo_url || ''} />
               <AvatarFallback className="text-xl sm:text-2xl bg-primary/10">
@@ -168,11 +182,11 @@ const TeacherDashboard = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Phone:</span>
-                  <span className="ml-2 font-medium">{teacher.phone || 'N/A'}</span>
+                  <span className="ml-2 font-medium tabular-nums">{teacher.phone || 'N/A'}</span>
                 </div>
                 <div className="sm:col-span-2">
                   <span className="text-muted-foreground">Subjects:</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
                     {teacher.subjects.map((subject) => (
                       <span
                         key={subject}
@@ -185,7 +199,7 @@ const TeacherDashboard = () => {
                 </div>
                 <div className="sm:col-span-2">
                   <span className="text-muted-foreground">Classes:</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
                     {teacher.classes_assigned.map((cls) => (
                       <span
                         key={cls}
@@ -237,8 +251,8 @@ const TeacherDashboard = () => {
 
       {/* Quick Actions */}
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2 leading-none">
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
           Quick Actions
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

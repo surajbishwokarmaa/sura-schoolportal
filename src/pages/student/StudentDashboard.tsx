@@ -170,10 +170,24 @@ const StudentDashboard = () => {
       color: 'from-purple-500 to-purple-600'
     },
     {
+      title: 'Change Password',
+      description: 'Set your own password',
+      icon: KeyRound,
+      path: '/change-password',
+      color: 'from-slate-500 to-slate-600'
+    },
+    {
+      title: 'System Guide',
+      description: 'How to use the portal',
+      icon: BookOpen,
+      path: '/system-guide',
+      color: 'from-cyan-500 to-cyan-600'
+    },
+    {
       title: 'Download Marksheet',
       description: 'Download PDF marksheet',
       icon: Download,
-      path: '/student/marksheet',
+      path: '/student/marksheet?download=1',
       color: 'from-green-500 to-green-600'
     }
   ];
