@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, TrendingUp, Download, Users, Bell, Calendar, RefreshCw, KeyRound, BookOpen } from 'lucide-react';
+import { FileText, TrendingUp, Download, Users, Bell, Calendar, RefreshCw, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
@@ -175,13 +175,6 @@ const StudentDashboard = () => {
       icon: KeyRound,
       path: '/change-password',
       color: 'from-slate-500 to-slate-600'
-    },
-    {
-      title: 'System Guide',
-      description: 'How to use the portal',
-      icon: BookOpen,
-      path: '/system-guide',
-      color: 'from-cyan-500 to-cyan-600'
     },
     {
       title: 'Download Marksheet',
