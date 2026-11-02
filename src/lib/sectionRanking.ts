@@ -10,16 +10,20 @@ export interface RankingResult {
   theory_marks: number | null; practical_marks: number | null; status: string | null;
 }
 
+export function matchesRankingSubject(result: Pick<RankingResult, 'subject_id' | 'subject'>, subject: Pick<RankingSubject, 'id' | 'name'>) {
+  return result.subject_id ? result.subject_id === subject.id : result.subject.toLowerCase() === subject.name.toLowerCase();
+}
+
 export function buildSectionRanking(students: { id: string; name: string; roll_no: string }[], subjects: RankingSubject[], results: RankingResult[]) {
   const grouped = new Map<string, RankingResult[]>();
   for (const r of results) grouped.set(r.student_id, [...(grouped.get(r.student_id) || []), r]);
   const rows = students.map(student => {
     const entries = grouped.get(student.id) || [];
     // Compulsory subjects are required; optional subjects count only when taken.
-    const expected = subjects.filter(s => s.subject_type !== 'optional' || entries.some(r => r.subject_id === s.id || r.subject.toLowerCase() === s.name.toLowerCase()));
+    const expected = subjects.filter(s => s.subject_type !== 'optional' || entries.some(r => matchesRankingSubject(r, s)));
     const graded = expected.map(s => {
-      const r = entries.find(r => r.subject_id === s.id || r.subject.toLowerCase() === s.name.toLowerCase());
-      if (!r || r.status === 'pending' || r.theory_marks === null || r.practical_marks === null) return null;
+      const r = entries.find(r => matchesRankingSubject(r, s));
+      if (!r || r.status !== 'approved' || r.theory_marks === null || r.practical_marks === null) return null;
       return { ...calculateSubjectGrade(r.theory_marks, r.practical_marks, s), creditHours: s.credit_hours, total: r.theory_marks + r.practical_marks, full: s.total_marks };
     });
     const complete = expected.length > 0 && graded.every(r => r !== null);
